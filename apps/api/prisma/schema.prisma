@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum StaffRole {
+  ADMIN
+  CLERK
+}
+
+enum OtpPurpose {
+  FARMER_LOGIN
+}
+
+model Organization {
+  id            String   @id @default(uuid())
+  name          String
+  slug          String   @unique
+  smsSenderName String
+  // Incremented atomically to mint auto-generated receipt numbers (e.g. DF-000123)
+  // when a clerk doesn't type one in from a paper book.
+  receiptSequence Int    @default(0)
+  // IANA time zone used to decide which calendar day a delivery belongs to (dashboard).
+  timezone      String   @default("Africa/Nairobi")
+  createdAt     DateTime @default(now())
+
+  staffUsers StaffUser[]
+  farmers    Farmer[]
+  receipts   Receipt[]
+  otpCodes   OtpCode[]
+}
+
+model StaffUser {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name           String
+  phone          String
+  email          String?
+  passwordHash   String
+  role           StaffRole
+  createdAt      DateTime     @default(now())
+  // "Deleting" a staff account sets this instead of removing the row, because
+  // receipts they recorded must keep pointing at who recorded them.
+  deletedAt      DateTime?
+  // Login tokens issued before this moment are rejected, so a password reset also
+  // signs the person out of every device that was using the old password.
+  passwordChangedAt DateTime?
+
+  receipts         Receipt[]
+  settledReceipts  Receipt[] @relation("SettledReceipts")
+  editedReceipts   Receipt[] @relation("EditedReceipts")
+
+  @@unique([organizationId, phone])
+}
+
+model Farmer {
+  id                 String       @id @default(uuid())
+  organizationId     String
+  organization       Organization @relation(fields: [organizationId], references: [id])
+  name               String
+  phone              String
+  nationalId         String?
+  photoUrl           String?
+  cumulativeWeightKg Decimal      @default(0) @db.Decimal(12, 2)
+  createdAt          DateTime     @default(now())
+
+  receipts Receipt[]
+
+  @@unique([organizationId, phone])
+}
+
+model Receipt {
+  id                String       @id @default(uuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  farmerId          String
+  farmer            Farmer       @relation(fields: [farmerId], references: [id])
+  receiptNumber     String
+  weightKg          Decimal      @db.Decimal(10, 2)
+  photoUrl          String?
+  recordedByStaffId String
+  recordedByStaff   StaffUser    @relation(fields: [recordedByStaffId], references: [id])
+  clientId          String
+  // The day/time the cherry was actually weighed, set by the client at capture time.
+  // Distinct from createdAt (when the server persisted it) because the mobile app is
+  // offline-first: a receipt recorded Friday evening may not sync until Monday, and
+  // must still be tagged to Friday for day-total reporting.
+  deliveredAt       DateTime
+  createdAt         DateTime     @default(now())
+  // Whether the factory has paid the farmer for this batch yet.
+  settled           Boolean      @default(false)
+  settledAt         DateTime?
+  settledByStaffId  String?
+  settledByStaff    StaffUser?   @relation("SettledReceipts", fields: [settledByStaffId], references: [id])
+  // Audit trail for clerk/admin corrections to weight or receipt number after entry.
+  editedAt          DateTime?
+  editedByStaffId   String?
+  editedByStaff     StaffUser?   @relation("EditedReceipts", fields: [editedByStaffId], references: [id])
+
+  @@unique([organizationId, clientId])
+  @@unique([organizationId, receiptNumber])
+  @@index([organizationId, farmerId])
+  @@index([organizationId, deliveredAt])
+  @@index([organizationId, settled])
+}
+
+model OtpCode {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  phone          String
+  codeHash       String
+  purpose        OtpPurpose
+  expiresAt      DateTime
+  consumedAt     DateTime?
+  // Wrong guesses so far; a code stops being accepted after a handful.
+  attempts       Int          @default(0)
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, phone])
+}

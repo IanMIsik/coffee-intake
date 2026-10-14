@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+coverage/
+.expo/
+apps/mobile/.expo/
+apps/api/prisma/dev.db
+uploads/
+*.pid
+mobile-qr.png
+.claude/
+price-analyzer/

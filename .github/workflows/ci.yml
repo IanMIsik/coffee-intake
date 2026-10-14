@@ -1,0 +1,38 @@
+name: CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: coffee
+          POSTGRES_PASSWORD: coffee
+          POSTGRES_DB: coffee_test
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U coffee" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://coffee:coffee@localhost:5433/coffee_test
+      DATABASE_URL: postgresql://coffee:coffee@localhost:5433/coffee_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.6.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @coffee/api prisma:generate
+      - run: pnpm --filter @coffee/api exec prisma migrate deploy
+      - run: pnpm --filter @coffee/shared build
+      - run: pnpm --filter @coffee/api build
+      - run: pnpm --filter @coffee/api test
+      - run: pnpm --filter @coffee/web build
+      - run: pnpm --filter @coffee/mobile exec tsc --noEmit

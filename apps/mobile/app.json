@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "Coffee Intake",
+    "slug": "coffee-intake",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.richardmisikestate.coffeeintake",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used to photograph the paper receipt at intake."
+      }
+    },
+    "android": {
+      "package": "com.richardmisikestate.coffeeintake",
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to use the camera to photograph receipts.",
+          "recordAudioAndroid": false
+        }
+      ],
+      "expo-sqlite",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "554c07cc-db24-4285-be53-fe5bd9afd8c2"
+      }
+    },
+    "owner": "ianmisik"
+  }
+}

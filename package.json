@@ -1,0 +1,16 @@
+{
+  "name": "coffee-management-system",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:api": "pnpm --filter @coffee/api dev",
+    "dev:web": "pnpm --filter @coffee/web dev",
+    "dev:mobile": "pnpm --filter @coffee/mobile start",
+    "build": "pnpm --filter @coffee/shared build && pnpm --filter @coffee/api build && pnpm --filter @coffee/web build",
+    "prisma:migrate": "pnpm --filter @coffee/api prisma:migrate",
+    "seed": "pnpm --filter @coffee/api seed"
+  }
+}

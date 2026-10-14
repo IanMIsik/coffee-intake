@@ -1,0 +1,15 @@
+**/node_modules
+**/dist
+**/.expo
+.git
+.github
+.claude
+price-analyzer
+apps/mobile
+**/*.log
+**/.env
+**/.env.*
+!**/.env.example
+**/uploads
+deploy/backups
+mobile-qr.png
