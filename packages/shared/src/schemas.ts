@@ -88,17 +88,77 @@ export const createReceiptSchema = z.object({
   clientId: z.string().uuid(),
   // ISO timestamp set by the client at capture time (see schema.prisma Receipt.deliveredAt).
   deliveredAt: z.coerce.date(),
+  // Agreed price per kg. Admin only; a clerk's request that includes one is refused.
+  pricePerKg: z.coerce.number().positive("Price must be greater than 0").optional(),
 });
 export type CreateReceiptInput = z.infer<typeof createReceiptSchema>;
 
+const money = (label: string) => z.coerce.number().positive(`${label} must be greater than 0`);
+
+/** Legacy on/off switch, kept so older app versions still work: true settles what is left. */
 export const settleReceiptSchema = z.object({
   settled: z.boolean(),
 });
 export type SettleReceiptInput = z.infer<typeof settleReceiptSchema>;
 
+/** Pay for some kilos of one delivery. Omit weightKg to pay everything still unpaid on it. */
+export const recordSettlementSchema = z.object({
+  weightKg: money("Kilos").optional(),
+  // Omit to use the delivery's agreed price.
+  pricePerKg: money("Price").optional(),
+  note: z.string().trim().max(200).optional(),
+});
+export type RecordSettlementInput = z.infer<typeof recordSettlementSchema>;
+
+/** Pay a farmer for some kilos; applied to their oldest unpaid deliveries first. */
+export const farmerSettlementSchema = z.object({
+  weightKg: money("Kilos"),
+  pricePerKg: money("Price").optional(),
+  note: z.string().trim().max(200).optional(),
+});
+export type FarmerSettlementInput = z.infer<typeof farmerSettlementSchema>;
+
+/** Set the agreed price on a farmer's deliveries in one go. */
+export const farmerPriceSchema = z.object({
+  pricePerKg: money("Price"),
+  // "unpriced": only deliveries with no price yet. "unsettled": also overwrite prices on unpaid deliveries.
+  scope: z.enum(["unpriced", "unsettled"]).default("unpriced"),
+});
+export type FarmerPriceInput = z.infer<typeof farmerPriceSchema>;
+
+/**
+ * Publish an agreed price. It is applied to every farmer's unpaid kilos straight away, except
+ * farmers listed in heldFarmerIds who chose to wait for a later batch.
+ */
+export const createBatchSchema = z.object({
+  name: z.string().trim().min(1).max(80).optional(),
+  pricePerKg: money("Price"),
+  note: z.string().trim().max(200).optional(),
+  heldFarmerIds: z.array(z.string().uuid()).max(5000).optional(),
+});
+export type CreateBatchInput = z.infer<typeof createBatchSchema>;
+
+/** Pay under a batch. Omit payments to pay every farmer's full unpaid share; omit weightKg to pay a farmer in full. */
+export const payBatchSchema = z.object({
+  payments: z
+    .array(z.object({ farmerId: z.string().uuid(), weightKg: money("Kilos").optional() }))
+    .max(5000)
+    .optional(),
+  note: z.string().trim().max(200).optional(),
+});
+export type PayBatchInput = z.infer<typeof payBatchSchema>;
+
+export const holdFarmerSchema = z.object({
+  farmerId: z.string().uuid(),
+  hold: z.boolean(),
+});
+export type HoldFarmerInput = z.infer<typeof holdFarmerSchema>;
+
 export const adjustReceiptSchema = z.object({
   weightKg: z.coerce.number().positive("Weight must be greater than 0").optional(),
   receiptNumber: z.string().trim().min(1).optional(),
+  // null clears the price. Admin only.
+  pricePerKg: z.coerce.number().positive("Price must be greater than 0").nullable().optional(),
 });
 export type AdjustReceiptInput = z.infer<typeof adjustReceiptSchema>;
 

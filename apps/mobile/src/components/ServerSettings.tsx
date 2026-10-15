@@ -30,17 +30,17 @@ export function ServerSettings() {
   return (
     <View style={{ marginTop: 24 }}>
       <TouchableOpacity onPress={() => setOpen((v) => !v)} style={{ alignItems: "center", padding: 8 }}>
-        <Text style={{ color: "#a9764a", fontSize: 12 }}>
+        <Text style={{ color: "#7b7266", fontSize: 12 }}>
           Server: {getApiUrl()} · {getOrganizationSlug()}
           {"  "}
           <Text style={{ textDecorationLine: "underline" }}>{open ? "Close" : "Change"}</Text>
         </Text>
-        {saved && <Text style={{ color: "#166534", fontSize: 12, marginTop: 4 }}>Server saved.</Text>}
+        {saved && <Text style={{ color: "#1d4d36", fontSize: 12, marginTop: 4 }}>Server saved.</Text>}
       </TouchableOpacity>
 
       {open && (
-        <View style={{ backgroundColor: "white", borderRadius: 10, padding: 12, marginTop: 4 }}>
-          <Text style={{ fontSize: 12, color: "#5f3a1e", marginBottom: 8 }}>
+        <View style={{ backgroundColor: "white", borderRadius: 14, padding: 12, marginTop: 4 }}>
+          <Text style={{ fontSize: 12, color: "#1d4d36", marginBottom: 8 }}>
             Server address, e.g. http://192.168.0.101:4000 or https://api.yourfactory.com
           </Text>
           <TextInput
@@ -50,9 +50,9 @@ export function ServerSettings() {
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="url"
-            style={{ backgroundColor: "#f7f3ee", borderRadius: 8, padding: 10, marginBottom: 8 }}
+            style={{ backgroundColor: "#f6f2ea", borderRadius: 12, padding: 10, marginBottom: 8 }}
           />
-          <Text style={{ fontSize: 12, color: "#5f3a1e", marginBottom: 8 }}>
+          <Text style={{ fontSize: 12, color: "#1d4d36", marginBottom: 8 }}>
             Organization code (given by your administrator)
           </Text>
           <TextInput
@@ -61,13 +61,13 @@ export function ServerSettings() {
             placeholder="Organization code"
             autoCapitalize="none"
             autoCorrect={false}
-            style={{ backgroundColor: "#f7f3ee", borderRadius: 8, padding: 10, marginBottom: 8 }}
+            style={{ backgroundColor: "#f6f2ea", borderRadius: 12, padding: 10, marginBottom: 8 }}
           />
-          {error && <Text style={{ color: "#b3413b", marginBottom: 8 }}>{error}</Text>}
+          {error && <Text style={{ color: "#b73a2c", marginBottom: 8 }}>{error}</Text>}
           <TouchableOpacity
             onPress={save}
             disabled={saving}
-            style={{ backgroundColor: "#7a4a26", borderRadius: 8, padding: 10, alignItems: "center", opacity: saving ? 0.6 : 1 }}
+            style={{ backgroundColor: "#2b6a4b", borderRadius: 12, padding: 10, alignItems: "center", opacity: saving ? 0.6 : 1 }}
           >
             {saving ? <ActivityIndicator color="white" /> : <Text style={{ color: "white", fontWeight: "600" }}>Check & save</Text>}
           </TouchableOpacity>

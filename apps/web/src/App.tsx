@@ -5,6 +5,7 @@ import { StaffLayout } from "./components/StaffLayout";
 import { AuthProvider } from "./context/AuthContext";
 import { FarmerHomePage } from "./pages/farmer/FarmerHomePage";
 import { FarmerLoginPage } from "./pages/farmer/FarmerLoginPage";
+import { BatchesPage } from "./pages/staff/BatchesPage";
 import { ChangePasswordPage } from "./pages/staff/ChangePasswordPage";
 import { DashboardPage } from "./pages/staff/DashboardPage";
 import { FarmerDetailPage } from "./pages/staff/FarmerDetailPage";
@@ -36,6 +37,14 @@ export default function App() {
             element={
               <RequireStaff role="ADMIN">
                 <DashboardPage />
+              </RequireStaff>
+            }
+          />
+          <Route
+            path="batches"
+            element={
+              <RequireStaff role="ADMIN">
+                <BatchesPage />
               </RequireStaff>
             }
           />

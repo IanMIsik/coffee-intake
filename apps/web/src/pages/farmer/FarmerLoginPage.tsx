@@ -1,6 +1,7 @@
 import { ApiError } from "@coffee/shared";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Logo } from "../../components/Icon";
 import { useAuth } from "../../context/AuthContext";
 import { api, ORGANIZATION_SLUG } from "../../lib/api";
 
@@ -43,56 +44,51 @@ export function FarmerLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="bg-white rounded-xl shadow p-6 w-full max-w-sm space-y-4">
-        <h1 className="text-xl font-semibold text-coffee-700">My Deliveries</h1>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-coffee-800 to-coffee-700 px-5">
+      <div className="mb-6 flex items-center gap-3 text-white">
+        <Logo className="h-11 w-11" />
+        <span className="font-display text-xl font-semibold">Coffee Cherry Intake</span>
+      </div>
+      <div className="card w-full max-w-sm space-y-5 p-7 shadow-pop">
+        <div>
+          <h1 className="page-title text-2xl">My Deliveries</h1>
+          <p className="mt-1 text-sm text-coffee-400">Sign in with the phone number the factory has for you.</p>
+        </div>
         {step === "phone" ? (
           <form onSubmit={requestCode} className="space-y-4">
             <div>
-              <label className="block text-sm mb-1">Your phone number</label>
+              <label className="label">Your phone number</label>
               <input
-                className="w-full border rounded px-3 py-2"
+                className="input"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+254712345678"
+                inputMode="tel"
                 required
               />
             </div>
-            {error && <p className="text-red-600 text-sm">{error}</p>}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-coffee-600 text-white rounded py-2 disabled:opacity-50"
-            >
+            {error && <p className="rounded-xl bg-cherry-50 px-3.5 py-2.5 text-sm text-cherry-700">{error}</p>}
+            <button type="submit" disabled={loading} className="btn-primary w-full !py-3">
               {loading ? "Sending..." : "Send me a code"}
             </button>
           </form>
         ) : (
           <form onSubmit={verifyCode} className="space-y-4">
-            <p className="text-sm text-coffee-400">
-              We sent a 6-digit code to {phone} via SMS.
-            </p>
+            <p className="text-sm text-coffee-400">We sent a 6-digit code to {phone} via SMS.</p>
             <input
-              className="w-full border rounded px-3 py-2 tracking-widest text-center"
+              className="input text-center text-xl font-semibold tracking-[0.5em]"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               maxLength={6}
+              inputMode="numeric"
               placeholder="000000"
               required
             />
-            {error && <p className="text-red-600 text-sm">{error}</p>}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-coffee-600 text-white rounded py-2 disabled:opacity-50"
-            >
+            {error && <p className="rounded-xl bg-cherry-50 px-3.5 py-2.5 text-sm text-cherry-700">{error}</p>}
+            <button type="submit" disabled={loading} className="btn-primary w-full !py-3">
               {loading ? "Verifying..." : "Verify"}
             </button>
-            <button
-              type="button"
-              onClick={() => setStep("phone")}
-              className="w-full text-sm text-coffee-600 underline"
-            >
+            <button type="button" onClick={() => setStep("phone")} className="btn-ghost w-full">
               Use a different number
             </button>
           </form>

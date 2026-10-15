@@ -1,17 +1,22 @@
-import type { Receipt } from "@coffee/shared";
+import type { FarmerBalance, Receipt } from "@coffee/shared";
+import { formatKg, formatMoney, paymentStatus } from "@coffee/shared";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, Image, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Logo, Pill } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
+import { card, colors } from "../theme";
 
 export function FarmerHomeScreen() {
   const { session, logout } = useAuth();
   const insets = useSafeAreaInsets();
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [loading, setLoading] = useState(true);
+  const [balance, setBalance] = useState<FarmerBalance | null>(null);
 
   useEffect(() => {
+    api.getMyFarmerProfile().then((f) => setBalance(f.balance)).catch(() => {});
     api
       .getMyReceipts()
       .then(setReceipts)
@@ -22,75 +27,92 @@ export function FarmerHomeScreen() {
   const { farmer, organization } = session;
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#f7f3ee" }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <View
         style={{
           paddingTop: insets.top + 12,
-          paddingHorizontal: 16,
-          paddingBottom: 16,
-          backgroundColor: "#7a4a26",
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
+          paddingHorizontal: 20,
+          paddingBottom: 64,
+          backgroundColor: colors.primaryDeep,
+          borderBottomLeftRadius: 28,
+          borderBottomRightRadius: 28,
         }}
       >
-        <Text style={{ color: "white", fontWeight: "600" }}>{organization.name}</Text>
-        <TouchableOpacity onPress={logout} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={{ color: "white", fontWeight: "600" }}>Log out</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={{ padding: 16 }}>
-        <View style={{ backgroundColor: "white", borderRadius: 12, padding: 20, alignItems: "center" }}>
-          <Text style={{ color: "#a9764a", fontSize: 12 }}>Welcome, {farmer.name}</Text>
-          <Text style={{ color: "#7a4a26", fontSize: 34, fontWeight: "700", marginTop: 8 }}>
-            {farmer.cumulativeWeightKg} kg
-          </Text>
-          <Text style={{ color: "#a9764a", fontSize: 12, marginTop: 4 }}>
-            Total cherry delivered to date
-          </Text>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <Logo size={30} />
+            <Text style={{ color: "white", fontWeight: "700" }}>{organization.name}</Text>
+          </View>
+          <TouchableOpacity onPress={logout} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={{ color: "#cfe0d5", fontWeight: "600" }}>Log out</Text>
+          </TouchableOpacity>
         </View>
+        <Text style={{ color: "#cfe0d5", marginTop: 24 }}>Welcome, {farmer.name}</Text>
+        <Text style={{ color: "white", fontSize: 44, fontWeight: "800", marginTop: 4 }}>
+          {farmer.cumulativeWeightKg}
+          <Text style={{ fontSize: 18, fontWeight: "600", color: "#cfe0d5" }}> kg</Text>
+        </Text>
+        <Text style={{ color: "#cfe0d5", fontSize: 13 }}>Total cherry delivered to date</Text>
       </View>
 
-      <Text style={{ fontWeight: "600", paddingHorizontal: 16, marginBottom: 8 }}>Delivery History</Text>
+      <View style={{ paddingHorizontal: 16, marginTop: -40 }}>
+        {balance && (
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <View style={{ ...card, flex: 1, padding: 14 }}>
+              <Text style={{ color: colors.gold, fontSize: 20, fontWeight: "800" }}>{formatMoney(balance.amountOwed)}</Text>
+              <Text style={{ color: colors.muted, fontSize: 12 }}>still owed to you</Text>
+              {Number(balance.unpricedKg) > 0 && (
+                <Text style={{ color: colors.muted, fontSize: 11, marginTop: 4 }}>
+                  + {formatKg(balance.unpricedKg)} not priced yet
+                </Text>
+              )}
+            </View>
+            <View style={{ ...card, flex: 1, padding: 14 }}>
+              <Text style={{ color: colors.primary, fontSize: 20, fontWeight: "800" }}>{formatMoney(balance.amountPaid)}</Text>
+              <Text style={{ color: colors.muted, fontSize: 12 }}>paid so far</Text>
+            </View>
+          </View>
+        )}
+      </View>
+
+      <Text style={{ fontWeight: "800", fontSize: 17, color: colors.primaryDark, paddingHorizontal: 20, marginTop: 20, marginBottom: 10 }}>
+        Delivery history
+      </Text>
       {loading ? (
         <ActivityIndicator style={{ marginTop: 16 }} />
       ) : (
         <FlatList
           data={receipts}
           keyExtractor={(r) => r.id}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
-          renderItem={({ item }) => (
-            <View
-              style={{
-                backgroundColor: "white",
-                borderRadius: 10,
-                padding: 12,
-                marginBottom: 8,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
-              {item.photoUrl && (
-                <Image
-                  source={{ uri: api.assetUrl(item.photoUrl) }}
-                  style={{ width: 44, height: 44, borderRadius: 6 }}
-                />
-              )}
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontWeight: "600" }}>Receipt #{item.receiptNumber}</Text>
-                <Text style={{ color: "#a9764a", fontSize: 12 }}>
-                  {new Date(item.deliveredAt).toLocaleDateString()}
-                </Text>
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
+          renderItem={({ item }) => {
+            const status = paymentStatus(item);
+            return (
+              <View style={{ ...card, padding: 12, marginBottom: 10, flexDirection: "row", alignItems: "center", gap: 12 }}>
+                {item.photoUrl && (
+                  <Image
+                    source={{ uri: api.assetUrl(item.photoUrl) }}
+                    style={{ width: 46, height: 46, borderRadius: 10 }}
+                  />
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontWeight: "700", color: colors.ink }}>Receipt #{item.receiptNumber}</Text>
+                  <Text style={{ color: colors.muted, fontSize: 12 }}>
+                    {new Date(item.deliveredAt).toLocaleDateString()}
+                  </Text>
+                </View>
+                <View style={{ alignItems: "flex-end", gap: 4 }}>
+                  <Text style={{ fontWeight: "800", color: colors.ink }}>{item.weightKg} kg</Text>
+                  <Pill
+                    tone={status === "paid" ? "green" : status === "partial" ? "gold" : "grey"}
+                    text={status === "paid" ? "Paid" : status === "partial" ? `${formatKg(item.settledKg)} paid` : "Not paid yet"}
+                  />
+                </View>
               </View>
-              <Text style={{ fontWeight: "700" }}>{item.weightKg} kg</Text>
-            </View>
-          )}
+            );
+          }}
           ListEmptyComponent={
-            <Text style={{ textAlign: "center", color: "#a9764a", marginTop: 24 }}>
-              No deliveries yet.
-            </Text>
+            <Text style={{ textAlign: "center", color: colors.muted, marginTop: 24 }}>No deliveries yet.</Text>
           }
         />
       )}

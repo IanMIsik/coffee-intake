@@ -9,6 +9,7 @@ import { createLimiters } from "./lib/rateLimit";
 import { logger } from "./lib/logger";
 import { verifyFileSignature } from "./lib/signedUrls";
 import { authRouter } from "./routes/auth";
+import { batchesRouter } from "./routes/batches";
 import { dashboardRouter } from "./routes/dashboard";
 import { farmersRouter } from "./routes/farmers";
 import { orgsRouter } from "./routes/orgs";
@@ -78,6 +79,7 @@ export function createApp(options: { rateLimit?: boolean } = {}) {
   app.use("/auth", authRouter);
   app.use("/farmers", farmersRouter);
   app.use("/receipts", receiptsRouter);
+  app.use("/batches", batchesRouter);
   app.use("/staff", staffRouter);
   app.use("/dashboard", dashboardRouter);
   app.use("/orgs", orgsRouter);

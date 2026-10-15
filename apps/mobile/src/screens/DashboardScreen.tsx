@@ -1,4 +1,5 @@
 import type { DashboardSummary, DayBreakdown } from "@coffee/shared";
+import { formatMoney } from "@coffee/shared";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -15,9 +16,9 @@ import type { RootStackParamList } from "../navigation/types";
 type Props = NativeStackScreenProps<RootStackParamList, "Dashboard">;
 type Preset = "7d" | "30d" | "month";
 
-const BROWN = "#7a4a26";
-const DARK = "#5f3a1e";
-const MUTED = "#a9764a";
+const BROWN = "#2b6a4b";
+const DARK = "#1d4d36";
+const MUTED = "#7b7266";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
@@ -54,7 +55,7 @@ function rangeFor(preset: Preset, today: string) {
 function Bar({ value, total, color }: { value: number; total: number; color: string }) {
   const pct = total > 0 ? Math.min(100, (value / total) * 100) : 0;
   return (
-    <View style={{ height: 8, borderRadius: 4, backgroundColor: "#eee3d6", overflow: "hidden" }}>
+    <View style={{ height: 8, borderRadius: 4, backgroundColor: "#e8e0d3", overflow: "hidden" }}>
       <View style={{ height: 8, width: `${pct}%`, backgroundColor: color, borderRadius: 4 }} />
     </View>
   );
@@ -62,7 +63,7 @@ function Bar({ value, total, color }: { value: number; total: number; color: str
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <View style={{ backgroundColor: "white", borderRadius: 12, padding: 14, marginBottom: 12 }}>
+    <View style={{ backgroundColor: "white", borderRadius: 16, padding: 14, marginBottom: 12 }}>
       {children}
     </View>
   );
@@ -119,8 +120,8 @@ export function DashboardScreen({ navigation }: Props) {
 
   if (!data) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f7f3ee", padding: 24 }}>
-        {error ? <Text style={{ color: "#b3413b", textAlign: "center" }}>{error}</Text> : <ActivityIndicator />}
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f6f2ea", padding: 24 }}>
+        {error ? <Text style={{ color: "#b73a2c", textAlign: "center" }}>{error}</Text> : <ActivityIndicator />}
       </View>
     );
   }
@@ -140,23 +141,23 @@ export function DashboardScreen({ navigation }: Props) {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: "#f7f3ee" }}
+      style={{ flex: 1, backgroundColor: "#f6f2ea" }}
       contentContainerStyle={{ padding: 12, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       {/* Today hero */}
       <View style={{ backgroundColor: BROWN, borderRadius: 16, padding: 18, marginBottom: 12 }}>
-        <Text style={{ color: "#ede2d3", fontSize: 11, letterSpacing: 1 }}>
+        <Text style={{ color: "#e4eee7", fontSize: 11, letterSpacing: 1 }}>
           TODAY · {fmtDay(data.today, true).toUpperCase()}
         </Text>
         <Text style={{ color: "white", fontSize: 38, fontWeight: "700", marginTop: 4 }}>
           {kg(todayKg)} kg
         </Text>
-        <Text style={{ color: "#ede2d3", marginTop: 2 }}>
+        <Text style={{ color: "#e4eee7", marginTop: 2 }}>
           {data.todayReceiptCount} {data.todayReceiptCount === 1 ? "delivery" : "deliveries"} from{" "}
           {data.todayFarmerCount} {data.todayFarmerCount === 1 ? "farmer" : "farmers"}
         </Text>
-        <Text style={{ color: delta !== null && delta < 0 ? "#fcd34d" : "#bbf7d0", marginTop: 8, fontWeight: "600" }}>
+        <Text style={{ color: delta !== null && delta < 0 ? "#fcd34d" : "#cfe0d5", marginTop: 8, fontWeight: "600" }}>
           {delta === null
             ? yesterdayKg === 0 && todayKg > 0
               ? "First deliveries after a quiet day"
@@ -167,11 +168,11 @@ export function DashboardScreen({ navigation }: Props) {
 
       {/* Key numbers */}
       <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
-        <View style={{ flex: 1, backgroundColor: "white", borderRadius: 12, padding: 12 }}>
+        <View style={{ flex: 1, backgroundColor: "white", borderRadius: 16, padding: 12 }}>
           <Text style={{ color: MUTED, fontSize: 11 }}>Farmers</Text>
           <Text style={{ color: BROWN, fontSize: 22, fontWeight: "700" }}>{data.totalFarmers}</Text>
         </View>
-        <View style={{ flex: 1.4, backgroundColor: "white", borderRadius: 12, padding: 12 }}>
+        <View style={{ flex: 1.4, backgroundColor: "white", borderRadius: 16, padding: 12 }}>
           <Text style={{ color: MUTED, fontSize: 11 }}>All-time received</Text>
           <Text style={{ color: BROWN, fontSize: 22, fontWeight: "700" }}>{kg(data.totalKgAllTime)} kg</Text>
         </View>
@@ -179,19 +180,23 @@ export function DashboardScreen({ navigation }: Props) {
 
       <View
         style={{
-          backgroundColor: "#fffbeb",
+          backgroundColor: "#f8ecc9",
           borderColor: "#fde68a",
           borderWidth: 1,
-          borderRadius: 12,
+          borderRadius: 16,
           padding: 14,
           marginBottom: 12,
         }}
       >
-        <Text style={{ color: "#b45309", fontSize: 11 }}>Awaiting settlement</Text>
-        <Text style={{ color: "#b45309", fontSize: 24, fontWeight: "700" }}>
+        <Text style={{ color: "#8a6414", fontSize: 11 }}>Awaiting settlement</Text>
+        <Text style={{ color: "#8a6414", fontSize: 24, fontWeight: "700" }}>
           {kg(data.unsettledKgAllTime)} kg
         </Text>
-        <Text style={{ color: "#b45309", fontSize: 12 }}>{data.unsettledReceiptCount} unsettled receipts</Text>
+        <Text style={{ color: "#8a6414", fontSize: 12 }}>{data.unsettledReceiptCount} deliveries not fully paid</Text>
+        <Text style={{ color: "#8a6414", fontSize: 15, fontWeight: "700", marginTop: 4 }}>{formatMoney(data.amountOwed)} owed</Text>
+        {Number(data.unpricedKg) > 0 && (
+          <Text style={{ color: "#8a6414", fontSize: 12 }}>{kg(data.unpricedKg)} kg has no price yet</Text>
+        )}
         {data.unsettledFarmers.map((f) => (
           <TouchableOpacity
             key={f.farmerId}
@@ -199,7 +204,7 @@ export function DashboardScreen({ navigation }: Props) {
             style={{ flexDirection: "row", justifyContent: "space-between", paddingTop: 10 }}
           >
             <Text style={{ color: DARK }}>{f.name}</Text>
-            <Text style={{ color: "#b45309", fontWeight: "600" }}>{kg(f.unsettledKg)} kg</Text>
+            <Text style={{ color: "#8a6414", fontWeight: "600" }}>{kg(f.unsettledKg)} kg · {formatMoney(f.amountOwed)}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -219,7 +224,7 @@ export function DashboardScreen({ navigation }: Props) {
                 paddingHorizontal: 12,
                 paddingVertical: 6,
                 borderRadius: 999,
-                backgroundColor: preset === id ? BROWN : "#f7f3ee",
+                backgroundColor: preset === id ? BROWN : "#f6f2ea",
               }}
             >
               <Text style={{ color: preset === id ? "white" : BROWN, fontSize: 13 }}>{label}</Text>
@@ -270,7 +275,7 @@ export function DashboardScreen({ navigation }: Props) {
                       height: barHeight,
                       borderTopLeftRadius: 4,
                       borderTopRightRadius: 4,
-                      backgroundColor: selected ? DARK : d.kg > 0 ? "#c28a5a" : "#eee3d6",
+                      backgroundColor: selected ? DARK : d.kg > 0 ? "#c8962e" : "#e8e0d3",
                     }}
                   />
                   <Text style={{ fontSize: 10, marginTop: 3, color: selected ? DARK : MUTED, fontWeight: selected ? "700" : "400" }}>
@@ -315,13 +320,13 @@ export function DashboardScreen({ navigation }: Props) {
                 <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
                   <Text style={{ fontWeight: "600" }}>{f.name}</Text>
                   <Text>
-                    <Text style={{ fontSize: 10, color: fullySettled ? "#15803d" : "#b45309" }}>
+                    <Text style={{ fontSize: 10, color: fullySettled ? "#2b6a4b" : "#8a6414" }}>
                       {fullySettled ? "Settled  " : "Not settled  "}
                     </Text>
                     <Text style={{ fontWeight: "700" }}>{kg(f.totalKg)} kg</Text>
                   </Text>
                 </View>
-                <Bar value={Number(f.totalKg)} total={Number(day.farmers[0].totalKg)} color="#c28a5a" />
+                <Bar value={Number(f.totalKg)} total={Number(day.farmers[0].totalKg)} color="#c8962e" />
                 <Text style={{ color: MUTED, fontSize: 11, marginTop: 2 }}>
                   {f.receiptCount} {f.receiptCount === 1 ? "delivery" : "deliveries"}
                 </Text>

@@ -13,7 +13,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 
-const input = { backgroundColor: "white", borderRadius: 8, padding: 12, marginBottom: 12 } as const;
+const input = { backgroundColor: "white", borderRadius: 12, padding: 12, marginBottom: 12 } as const;
 
 export function ChangePasswordScreen() {
   const { session, loginStaff } = useAuth();
@@ -56,9 +56,9 @@ export function ChangePasswordScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <ScrollView style={{ backgroundColor: "#f7f3ee" }} contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
-        <Text style={{ fontSize: 18, fontWeight: "700", color: "#5f3a1e" }}>{staff.name}</Text>
-        <Text style={{ color: "#a9764a", marginBottom: 20 }}>
+      <ScrollView style={{ backgroundColor: "#f6f2ea" }} contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
+        <Text style={{ fontSize: 18, fontWeight: "700", color: "#1d4d36" }}>{staff.name}</Text>
+        <Text style={{ color: "#7b7266", marginBottom: 20 }}>
           {staff.phone} · {staff.role === "ADMIN" ? "Admin" : "Clerk"}
         </Text>
 
@@ -88,9 +88,9 @@ export function ChangePasswordScreen() {
           style={input}
         />
 
-        {error && <Text style={{ color: "#b3413b", marginBottom: 12 }}>{error}</Text>}
+        {error && <Text style={{ color: "#b73a2c", marginBottom: 12 }}>{error}</Text>}
         {done && (
-          <Text style={{ color: "#166534", marginBottom: 12 }}>
+          <Text style={{ color: "#1d4d36", marginBottom: 12 }}>
             Password changed. You've been signed out of your other devices.
           </Text>
         )}
@@ -99,8 +99,8 @@ export function ChangePasswordScreen() {
           onPress={onSubmit}
           disabled={saving || !currentPassword || !newPassword}
           style={{
-            backgroundColor: "#7a4a26",
-            borderRadius: 8,
+            backgroundColor: "#2b6a4b",
+            borderRadius: 12,
             padding: 14,
             alignItems: "center",
             opacity: saving || !currentPassword || !newPassword ? 0.5 : 1,

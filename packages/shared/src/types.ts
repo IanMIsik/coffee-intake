@@ -27,6 +27,8 @@ export interface Farmer {
   photoUrl: string | null;
   cumulativeWeightKg: string;
   createdAt: string;
+  /** Set when the farmer was removed from the list; their records are kept. */
+  archivedAt?: string | null;
 }
 
 export interface Receipt {
@@ -40,6 +42,10 @@ export interface Receipt {
   clientId: string;
   deliveredAt: string;
   createdAt: string;
+  /** Agreed price per kg (null until an admin sets one). */
+  pricePerKg: string | null;
+  /** Kilos paid for so far; the receipt is settled when this equals weightKg. */
+  settledKg: string;
   settled: boolean;
   settledAt: string | null;
   settledByStaffId: string | null;
@@ -47,7 +53,34 @@ export interface Receipt {
   editedByStaffId: string | null;
 }
 
+export interface Settlement {
+  id: string;
+  receiptId: string;
+  farmerId: string;
+  weightKg: string;
+  pricePerKg: string | null;
+  amount: string | null;
+  note: string | null;
+  recordedByStaffId: string;
+  createdAt: string;
+  voidedAt: string | null;
+}
+
+/** What a farmer is owed, summed over their deliveries. Amounts are in the organization's currency. */
+export interface FarmerBalance {
+  deliveredKg: string;
+  settledKg: string;
+  unsettledKg: string;
+  /** Unpaid kilos that have a price, times that price. */
+  amountOwed: string;
+  /** Unpaid kilos that have no price yet, so no amount can be worked out for them. */
+  unpricedKg: string;
+  /** Money recorded as paid (voided payments excluded). */
+  amountPaid: string;
+}
+
 export interface ReceiptWithDetails extends Receipt {
+  settlements: Settlement[];
   farmer: Farmer;
   organization: Organization;
   recordedByStaff: { id: string; name: string };
@@ -86,6 +119,7 @@ export interface UnsettledFarmer {
   name: string;
   phone: string;
   unsettledKg: string;
+  amountOwed: string;
   receiptCount: number;
 }
 
@@ -120,6 +154,10 @@ export interface DashboardSummary {
   unsettledFarmers: UnsettledFarmer[];
   unsettledKgAllTime: string;
   unsettledReceiptCount: number;
+  /** Unpaid kilos that have a price, times that price. */
+  amountOwed: string;
+  /** Unpaid kilos with no price yet. */
+  unpricedKg: string;
   range: { from: string; to: string };
   rangeTotals: {
     totalKg: string;
@@ -127,7 +165,43 @@ export interface DashboardSummary {
     farmerCount: number;
     settledKg: string;
     unsettledKg: string;
+    /** Money recorded as paid on dates inside the range. */
+    amountPaid: string;
   };
   dailyBreakdown: DailyTotal[];
   topFarmersInRange: TopFarmer[];
+}
+
+/** An agreed price for a lot of cherry, applied to everyone's unpaid kilos except farmers who wait. */
+export interface Batch {
+  id: string;
+  name: string;
+  pricePerKg: string;
+  note: string | null;
+  heldFarmerIds: string[];
+  createdAt: string;
+}
+
+export interface BatchSummary extends Batch {
+  unpaidKg: string;
+  farmersOwed: number;
+  heldCount: number;
+  paidKg: string;
+  amountPaid: string;
+}
+
+export interface BatchFarmerRow {
+  farmerId: string;
+  name: string;
+  phone: string;
+  held: boolean;
+  unpaidKg: string;
+  amountOwed: string;
+  paidKg: string;
+  amountPaid: string;
+}
+
+export interface BatchDetail extends Batch {
+  farmers: BatchFarmerRow[];
+  pricedReceipts?: number;
 }

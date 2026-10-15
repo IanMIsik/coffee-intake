@@ -107,8 +107,8 @@ export function StaffScreen() {
   if (loading) return <ActivityIndicator style={{ marginTop: 32 }} />;
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#f7f3ee" }}>
-      {error && <Text style={{ color: "#b3413b", padding: 12 }}>{error}</Text>}
+    <View style={{ flex: 1, backgroundColor: "#f6f2ea" }}>
+      {error && <Text style={{ color: "#b73a2c", padding: 12 }}>{error}</Text>}
       <FlatList
         data={staff}
         keyExtractor={(s) => s.id}
@@ -117,24 +117,24 @@ export function StaffScreen() {
           const isMe = item.id === myId;
           const busy = busyId === item.id;
           return (
-            <View style={{ backgroundColor: "white", borderRadius: 12, padding: 14, marginBottom: 8 }}>
+            <View style={{ backgroundColor: "white", borderRadius: 16, padding: 14, marginBottom: 8 }}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontWeight: "600" }}>
                     {item.name}
                     {isMe ? "  (you)" : ""}
                   </Text>
-                  <Text style={{ color: "#a9764a", fontSize: 12 }}>{item.phone}</Text>
+                  <Text style={{ color: "#7b7266", fontSize: 12 }}>{item.phone}</Text>
                 </View>
                 <View
                   style={{
                     paddingHorizontal: 10,
                     paddingVertical: 4,
                     borderRadius: 999,
-                    backgroundColor: item.role === "ADMIN" ? "#7a4a26" : "#ede2d3",
+                    backgroundColor: item.role === "ADMIN" ? "#2b6a4b" : "#e4eee7",
                   }}
                 >
-                  <Text style={{ color: item.role === "ADMIN" ? "white" : "#5f3a1e", fontSize: 12, fontWeight: "600" }}>
+                  <Text style={{ color: item.role === "ADMIN" ? "white" : "#1d4d36", fontSize: 12, fontWeight: "600" }}>
                     {item.role === "ADMIN" ? "Admin" : "Clerk"}
                   </Text>
                 </View>
@@ -147,13 +147,13 @@ export function StaffScreen() {
                     style={{
                       flex: 1,
                       padding: 10,
-                      borderRadius: 8,
+                      borderRadius: 12,
                       alignItems: "center",
-                      backgroundColor: "#f7f3ee",
+                      backgroundColor: "#f6f2ea",
                       opacity: busy ? 0.5 : 1,
                     }}
                   >
-                    <Text style={{ color: "#7a4a26", fontWeight: "600" }}>
+                    <Text style={{ color: "#2b6a4b", fontWeight: "600" }}>
                       {item.role === "ADMIN" ? "Make clerk" : "Make admin"}
                     </Text>
                   </TouchableOpacity>
@@ -163,13 +163,13 @@ export function StaffScreen() {
                     style={{
                       flex: 1,
                       padding: 10,
-                      borderRadius: 8,
+                      borderRadius: 12,
                       alignItems: "center",
-                      backgroundColor: "#fef2f2",
+                      backgroundColor: "#fdf0ee",
                       opacity: busy ? 0.5 : 1,
                     }}
                   >
-                    <Text style={{ color: "#b91c1c", fontWeight: "600" }}>Delete</Text>
+                    <Text style={{ color: "#962d22", fontWeight: "600" }}>Delete</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -180,14 +180,14 @@ export function StaffScreen() {
                   setNewPassword("");
                   setResettingId(resettingId === item.id ? null : item.id);
                 }}
-                style={{ marginTop: 8, padding: 10, borderRadius: 8, alignItems: "center", backgroundColor: "#f7f3ee" }}
+                style={{ marginTop: 8, padding: 10, borderRadius: 12, alignItems: "center", backgroundColor: "#f6f2ea" }}
               >
-                <Text style={{ color: "#7a4a26", fontWeight: "600" }}>Reset password</Text>
+                <Text style={{ color: "#2b6a4b", fontWeight: "600" }}>Reset password</Text>
               </TouchableOpacity>
 
               {resettingId === item.id && (
-                <View style={{ marginTop: 8, backgroundColor: "#f7f3ee", borderRadius: 8, padding: 10 }}>
-                  <Text style={{ color: "#5f3a1e", fontSize: 12, marginBottom: 8 }}>
+                <View style={{ marginTop: 8, backgroundColor: "#f6f2ea", borderRadius: 12, padding: 10 }}>
+                  <Text style={{ color: "#1d4d36", fontSize: 12, marginBottom: 8 }}>
                     Type a new password (8+ characters), or leave it blank to generate a strong one.
                     {isMe ? " You'll be signed out." : " They'll be signed out everywhere."}
                   </Text>
@@ -197,14 +197,14 @@ export function StaffScreen() {
                     placeholder="New password (optional)"
                     autoCapitalize="none"
                     autoCorrect={false}
-                    style={{ backgroundColor: "white", borderRadius: 8, padding: 10, marginBottom: 8 }}
+                    style={{ backgroundColor: "white", borderRadius: 12, padding: 10, marginBottom: 8 }}
                   />
                   <TouchableOpacity
                     onPress={() => submitReset(item)}
                     disabled={busy || (newPassword.length > 0 && newPassword.length < 8)}
                     style={{
-                      backgroundColor: "#7a4a26",
-                      borderRadius: 8,
+                      backgroundColor: "#2b6a4b",
+                      borderRadius: 12,
                       padding: 10,
                       alignItems: "center",
                       opacity: busy || (newPassword.length > 0 && newPassword.length < 8) ? 0.5 : 1,
@@ -218,15 +218,15 @@ export function StaffScreen() {
               )}
 
               {resetResult?.id === item.id && (
-                <View style={{ marginTop: 8, backgroundColor: "#f0fdf4", borderColor: "#bbf7d0", borderWidth: 1, borderRadius: 8, padding: 10 }}>
-                  <Text style={{ color: "#166534", fontSize: 12 }}>
+                <View style={{ marginTop: 8, backgroundColor: "#e4eee7", borderColor: "#cfe0d5", borderWidth: 1, borderRadius: 12, padding: 10 }}>
+                  <Text style={{ color: "#1d4d36", fontSize: 12 }}>
                     Password updated for {item.name}. Give them this password; it won't be shown again:
                   </Text>
                   <Text selectable style={{ fontFamily: "Courier", fontSize: 20, fontWeight: "700", marginVertical: 6 }}>
                     {resetResult.password}
                   </Text>
                   <TouchableOpacity onPress={() => setResetResult(null)}>
-                    <Text style={{ color: "#a9764a", textDecorationLine: "underline", fontSize: 12 }}>Dismiss</Text>
+                    <Text style={{ color: "#7b7266", textDecorationLine: "underline", fontSize: 12 }}>Dismiss</Text>
                   </TouchableOpacity>
                 </View>
               )}

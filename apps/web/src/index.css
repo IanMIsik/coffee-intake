@@ -2,6 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-coffee-50 text-coffee-900;
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-coffee-50 text-coffee-900 font-sans antialiased;
+  }
+  h1,
+  h2 {
+    @apply font-display tracking-tight;
+  }
+  input,
+  select,
+  textarea {
+    @apply outline-none;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-2xl shadow-card border border-coffee-300/60;
+  }
+  .input {
+    @apply w-full rounded-xl border border-coffee-300 bg-white px-3.5 py-2.5 text-sm placeholder:text-coffee-400/70
+      transition focus:border-coffee-600 focus:ring-4 focus:ring-coffee-600/15;
+  }
+  .label {
+    @apply block text-xs font-semibold uppercase tracking-wide text-coffee-400 mb-1.5;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition
+      active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none focus-visible:ring-4 focus-visible:ring-coffee-600/25;
+  }
+  .btn-primary {
+    @apply btn bg-coffee-600 text-white shadow-sm hover:bg-coffee-700;
+  }
+  .btn-secondary {
+    @apply btn bg-white text-coffee-700 border border-coffee-300 hover:bg-coffee-100;
+  }
+  .btn-danger {
+    @apply btn bg-cherry-600 text-white hover:bg-cherry-700;
+  }
+  .btn-ghost {
+    @apply btn text-coffee-600 hover:bg-coffee-100;
+  }
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold;
+  }
+  .badge-green {
+    @apply badge bg-coffee-100 text-coffee-700;
+  }
+  .badge-amber {
+    @apply badge bg-gold-100 text-gold-700;
+  }
+  .badge-red {
+    @apply badge bg-cherry-100 text-cherry-700;
+  }
+  .badge-grey {
+    @apply badge bg-stone-100 text-stone-600;
+  }
+  .page-title {
+    @apply font-display text-2xl font-semibold text-coffee-800;
+  }
 }

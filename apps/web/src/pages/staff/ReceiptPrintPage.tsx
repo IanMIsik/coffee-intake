@@ -15,7 +15,7 @@ export function ReceiptPrintPage() {
 
   return (
     <div className="min-h-screen bg-coffee-50 py-8 px-4 print:bg-white print:p-0">
-      <div className="max-w-sm mx-auto bg-white rounded-xl shadow p-6 print:shadow-none print:rounded-none">
+      <div className="card max-w-sm mx-auto p-6 print:shadow-none print:rounded-none">
         <div className="text-center mb-4">
           <h1 className="font-bold text-lg text-coffee-700">{receipt.organization.name}</h1>
           <p className="text-xs text-coffee-400">Cherry Intake Receipt</p>
@@ -43,7 +43,13 @@ export function ReceiptPrintPage() {
           </div>
           <div className="flex justify-between">
             <span className="text-coffee-400">Status</span>
-            <span>{receipt.settled ? "Settled" : "Not yet settled"}</span>
+            <span>
+              {receipt.settled
+                ? "Paid"
+                : Number(receipt.settledKg) > 0
+                  ? `${receipt.settledKg} kg paid`
+                  : "Not yet paid"}
+            </span>
           </div>
         </div>
         <div className="text-center py-3">
@@ -52,7 +58,7 @@ export function ReceiptPrintPage() {
         </div>
         <button
           onClick={() => window.print()}
-          className="w-full bg-coffee-600 text-white rounded py-2 mt-4 print:hidden"
+          className="btn-primary w-full mt-4 print:hidden"
         >
           Print
         </button>

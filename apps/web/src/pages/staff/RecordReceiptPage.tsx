@@ -2,18 +2,22 @@ import type { Farmer } from "@coffee/shared";
 import { ApiError } from "@coffee/shared";
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import { api } from "../../lib/api";
 
 export function RecordReceiptPage() {
   const [searchParams] = useSearchParams();
   const preselectedFarmerId = searchParams.get("farmerId");
   const navigate = useNavigate();
+  const { session } = useAuth();
+  const isAdmin = session?.kind === "staff" && session.staff.role === "ADMIN";
 
   const [farmer, setFarmer] = useState<Farmer | null>(null);
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<Farmer[]>([]);
   const [receiptNumber, setReceiptNumber] = useState("");
   const [weightKg, setWeightKg] = useState("");
+  const [pricePerKg, setPricePerKg] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -59,11 +63,13 @@ export function RecordReceiptPage() {
         weightKg: Number(weightKg),
         clientId: crypto.randomUUID(),
         deliveredAt: new Date().toISOString(),
+        pricePerKg: isAdmin && Number(pricePerKg) > 0 ? Number(pricePerKg) : undefined,
         photo: photo ?? undefined,
       });
       setLastReceipt({ id: receipt.id, receiptNumber: receipt.receiptNumber });
       setReceiptNumber("");
       setWeightKg("");
+      setPricePerKg("");
       setPhoto(null);
       setPhotoPreview(null);
     } catch (err) {
@@ -75,19 +81,19 @@ export function RecordReceiptPage() {
 
   return (
     <div className="space-y-4 max-w-lg">
-      <h1 className="text-lg font-semibold text-coffee-700">Record Cherry Receipt</h1>
+      <h1 className="page-title">Record Cherry Receipt</h1>
 
       {!farmer ? (
         <div className="space-y-2">
           <label className="block text-sm">Find farmer</label>
           <input
-            className="w-full border rounded px-3 py-2"
+            className="input w-full"
             placeholder="Search by name or phone"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           {results.length > 0 && (
-            <div className="bg-white rounded-xl shadow divide-y">
+            <div className="card divide-y divide-coffee-300/60 overflow-hidden">
               {results.map((f) => (
                 <button
                   key={f.id}
@@ -103,7 +109,7 @@ export function RecordReceiptPage() {
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow p-4 flex items-center justify-between">
+        <div className="card p-4 flex items-center justify-between">
           <div>
             <div className="font-medium">{farmer.name}</div>
             <div className="text-sm text-coffee-400">{farmer.phone}</div>
@@ -118,38 +124,52 @@ export function RecordReceiptPage() {
         </div>
       )}
 
-      <form onSubmit={onSubmit} className="bg-white rounded-xl shadow p-4 space-y-3">
+      <form onSubmit={onSubmit} className="card p-4 space-y-3">
         <div>
-          <label className="block text-sm mb-1">Receipt number (optional — leave blank to auto-generate)</label>
+          <label className="label">Receipt number (optional — leave blank to auto-generate)</label>
           <input
-            className="w-full border rounded px-3 py-2"
+            className="input w-full"
             value={receiptNumber}
             onChange={(e) => setReceiptNumber(e.target.value)}
             placeholder="Leave blank to auto-generate"
           />
         </div>
         <div>
-          <label className="block text-sm mb-1">Weight (kg)</label>
+          <label className="label">Weight (kg)</label>
           <input
             type="number"
             step="0.1"
             min="0"
-            className="w-full border rounded px-3 py-2"
+            className="input w-full"
             value={weightKg}
             onChange={(e) => setWeightKg(e.target.value)}
             required
           />
         </div>
+        {isAdmin && (
+          <div>
+            <label className="label">Agreed price per kg, KES (optional)</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              className="input w-full"
+              value={pricePerKg}
+              onChange={(e) => setPricePerKg(e.target.value)}
+              placeholder="Can also be set later"
+            />
+          </div>
+        )}
         <div>
-          <label className="block text-sm mb-1">Photo of paper receipt</label>
+          <label className="label">Photo of paper receipt</label>
           <input type="file" accept="image/*" capture="environment" onChange={onPhotoChange} />
           {photoPreview && (
-            <img src={photoPreview} alt="Preview" className="mt-2 w-32 h-32 object-cover rounded border" />
+            <img src={photoPreview} alt="Preview" className="mt-2 w-32 h-32 object-cover rounded border border-coffee-300" />
           )}
         </div>
-        {error && <p className="text-red-600 text-sm">{error}</p>}
+        {error && <p className="text-cherry-600 text-sm">{error}</p>}
         {lastReceipt && (
-          <p className="text-green-700 text-sm">
+          <p className="text-coffee-600 text-sm">
             Receipt #{lastReceipt.receiptNumber} recorded.{" "}
             <a
               href={`/app/receipts/${lastReceipt.id}`}
@@ -165,7 +185,7 @@ export function RecordReceiptPage() {
           <button
             type="submit"
             disabled={saving}
-            className="bg-coffee-600 text-white rounded px-4 py-2 text-sm disabled:opacity-50"
+            className="btn-primary"
           >
             {saving ? "Saving..." : "Save Receipt"}
           </button>

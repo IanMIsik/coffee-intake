@@ -42,19 +42,19 @@ export function ChangePasswordPage() {
   return (
     <div className="max-w-md space-y-4">
       <div>
-        <h1 className="text-lg font-semibold text-coffee-700">My Account</h1>
+        <h1 className="page-title">My Account</h1>
         <p className="text-sm text-coffee-400">
           {staff.name} · {staff.phone} · {staff.role === "ADMIN" ? "Admin" : "Clerk"}
         </p>
       </div>
 
-      <form onSubmit={onSubmit} className="bg-white rounded-xl shadow p-4 space-y-3">
+      <form onSubmit={onSubmit} className="card p-4 space-y-3">
         <h2 className="font-semibold">Change password</h2>
         <div>
-          <label className="block text-sm mb-1">Current password</label>
+          <label className="label">Current password</label>
           <input
             type="password"
-            className="w-full border rounded px-3 py-2"
+            className="input w-full"
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
             autoComplete="current-password"
@@ -62,10 +62,10 @@ export function ChangePasswordPage() {
           />
         </div>
         <div>
-          <label className="block text-sm mb-1">New password (8+ characters)</label>
+          <label className="label">New password (8+ characters)</label>
           <input
             type="password"
-            className="w-full border rounded px-3 py-2"
+            className="input w-full"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             autoComplete="new-password"
@@ -74,26 +74,26 @@ export function ChangePasswordPage() {
           />
         </div>
         <div>
-          <label className="block text-sm mb-1">Confirm new password</label>
+          <label className="label">Confirm new password</label>
           <input
             type="password"
-            className="w-full border rounded px-3 py-2"
+            className="input w-full"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             autoComplete="new-password"
             required
           />
         </div>
-        {error && <p className="text-red-600 text-sm">{error}</p>}
+        {error && <p className="text-cherry-600 text-sm">{error}</p>}
         {done && (
-          <p className="text-green-700 text-sm">
+          <p className="text-coffee-600 text-sm">
             Password changed. You've been signed out of your other devices.
           </p>
         )}
         <button
           type="submit"
           disabled={saving}
-          className="bg-coffee-600 text-white rounded px-4 py-2 text-sm disabled:opacity-50"
+          className="btn-primary"
         >
           {saving ? "Saving..." : "Change password"}
         </button>

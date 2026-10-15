@@ -17,43 +17,48 @@ enum OtpPurpose {
 }
 
 model Organization {
-  id            String   @id @default(uuid())
-  name          String
-  slug          String   @unique
-  smsSenderName String
+  id              String   @id @default(uuid())
+  name            String
+  slug            String   @unique
+  smsSenderName   String
   // Incremented atomically to mint auto-generated receipt numbers (e.g. DF-000123)
   // when a clerk doesn't type one in from a paper book.
-  receiptSequence Int    @default(0)
+  receiptSequence Int      @default(0)
   // IANA time zone used to decide which calendar day a delivery belongs to (dashboard).
-  timezone      String   @default("Africa/Nairobi")
-  createdAt     DateTime @default(now())
+  timezone        String   @default("Africa/Nairobi")
+  createdAt       DateTime @default(now())
 
-  staffUsers StaffUser[]
-  farmers    Farmer[]
-  receipts   Receipt[]
-  otpCodes   OtpCode[]
+  staffUsers  StaffUser[]
+  farmers     Farmer[]
+  receipts    Receipt[]
+  settlements Settlement[]
+  batches     Batch[]
+  otpCodes    OtpCode[]
 }
 
 model StaffUser {
-  id             String       @id @default(uuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  name           String
-  phone          String
-  email          String?
-  passwordHash   String
-  role           StaffRole
-  createdAt      DateTime     @default(now())
+  id                String       @id @default(uuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  name              String
+  phone             String
+  email             String?
+  passwordHash      String
+  role              StaffRole
+  createdAt         DateTime     @default(now())
   // "Deleting" a staff account sets this instead of removing the row, because
   // receipts they recorded must keep pointing at who recorded them.
-  deletedAt      DateTime?
+  deletedAt         DateTime?
   // Login tokens issued before this moment are rejected, so a password reset also
   // signs the person out of every device that was using the old password.
   passwordChangedAt DateTime?
 
-  receipts         Receipt[]
-  settledReceipts  Receipt[] @relation("SettledReceipts")
-  editedReceipts   Receipt[] @relation("EditedReceipts")
+  receipts          Receipt[]
+  settledReceipts   Receipt[]    @relation("SettledReceipts")
+  editedReceipts    Receipt[]    @relation("EditedReceipts")
+  settlements       Settlement[] @relation("RecordedSettlements")
+  voidedSettlements Settlement[] @relation("VoidedSettlements")
+  createdBatches    Batch[]
 
   @@unique([organizationId, phone])
 }
@@ -68,8 +73,13 @@ model Farmer {
   photoUrl           String?
   cumulativeWeightKg Decimal      @default(0) @db.Decimal(12, 2)
   createdAt          DateTime     @default(now())
+  // Removed from the farmers list, but never deleted: their deliveries and payments stay on
+  // record. Archived farmers can't log in or receive new deliveries.
+  archivedAt         DateTime?
+  archivedByStaffId  String?
 
-  receipts Receipt[]
+  receipts    Receipt[]
+  settlements Settlement[]
 
   @@unique([organizationId, phone])
 }
@@ -93,6 +103,11 @@ model Receipt {
   deliveredAt       DateTime
   createdAt         DateTime     @default(now())
   // Whether the factory has paid the farmer for this batch yet.
+  // Agreed price per kg (set by an admin; can be set or changed later).
+  pricePerKg        Decimal?     @db.Decimal(10, 2)
+  // Kilos paid for so far. Kept equal to the sum of this receipt's settlements so
+  // totals can be summed cheaply; settled means every kilo has been paid.
+  settledKg         Decimal      @default(0) @db.Decimal(10, 2)
   settled           Boolean      @default(false)
   settledAt         DateTime?
   settledByStaffId  String?
@@ -102,6 +117,12 @@ model Receipt {
   editedByStaffId   String?
   editedByStaff     StaffUser?   @relation("EditedReceipts", fields: [editedByStaffId], references: [id])
 
+  settlements Settlement[]
+  // The batch whose price currently applies to this delivery's unpaid kilos.
+  batchId     String?
+  batch       Batch?       @relation(fields: [batchId], references: [id])
+
+  @@index([batchId])
   @@unique([organizationId, clientId])
   @@unique([organizationId, receiptNumber])
   @@index([organizationId, farmerId])
@@ -123,4 +144,58 @@ model OtpCode {
   createdAt      DateTime     @default(now())
 
   @@index([organizationId, phone])
+}
+
+// One payment against (part of) a delivery. A receipt can have several: paying for part of a
+// delivery as lots are sold, then the rest later. Voided entries stay for the record but
+// no longer count.
+model Settlement {
+  id                String       @id @default(uuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  receiptId         String
+  receipt           Receipt      @relation(fields: [receiptId], references: [id])
+  farmerId          String
+  farmer            Farmer       @relation(fields: [farmerId], references: [id])
+  weightKg          Decimal      @db.Decimal(10, 2)
+  // Price actually applied to this payment; null when no price was known (e.g. older records).
+  pricePerKg        Decimal?     @db.Decimal(10, 2)
+  amount            Decimal?     @db.Decimal(12, 2)
+  note              String?
+  recordedByStaffId String
+  recordedByStaff   StaffUser    @relation("RecordedSettlements", fields: [recordedByStaffId], references: [id])
+  createdAt         DateTime     @default(now())
+  voidedAt          DateTime?
+  voidedByStaffId   String?
+  voidedByStaff     StaffUser?   @relation("VoidedSettlements", fields: [voidedByStaffId], references: [id])
+  // The batch this payment was made under, if any.
+  batchId           String?
+  batch             Batch?       @relation(fields: [batchId], references: [id])
+
+  @@index([batchId])
+  @@index([organizationId, farmerId])
+  @@index([receiptId])
+}
+
+// A price agreed for a lot of cherry. Publishing one prices every farmer's unpaid kilos at once
+// (except farmers who chose to wait, who keep their earlier price and join a later batch).
+// Kilos already paid keep the price they were paid at, so a later batch can carry a new
+// market price and still cover the unpaid part of a partly-paid delivery.
+model Batch {
+  id               String       @id @default(uuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  name             String
+  pricePerKg       Decimal      @db.Decimal(10, 2)
+  note             String?
+  // Farmers who asked to wait and were left out of this batch.
+  heldFarmerIds    String[]
+  createdByStaffId String
+  createdByStaff   StaffUser    @relation(fields: [createdByStaffId], references: [id])
+  createdAt        DateTime     @default(now())
+
+  receipts    Receipt[]
+  settlements Settlement[]
+
+  @@index([organizationId, createdAt])
 }

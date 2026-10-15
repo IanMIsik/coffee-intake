@@ -1,9 +1,11 @@
 import type { Farmer } from "@coffee/shared";
 import { db } from "./database";
 
-export function cacheFarmers(farmers: Farmer[]) {
+/** With replaceAll (an unfiltered full list), farmers no longer on the server list are dropped from the cache. */
+export function cacheFarmers(farmers: Farmer[], opts: { replaceAll?: boolean } = {}) {
   const now = new Date().toISOString();
   db.withTransactionSync(() => {
+    if (opts.replaceAll) db.runSync("DELETE FROM cached_farmers");
     for (const f of farmers) {
       db.runSync(
         `INSERT INTO cached_farmers (id, name, phone, cumulativeWeightKg, updatedAt)

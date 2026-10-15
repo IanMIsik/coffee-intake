@@ -5,6 +5,7 @@ export type RootStackParamList = {
   FarmerList: undefined;
   Dashboard: undefined;
   Staff: undefined;
+  Batches: undefined;
   ChangePassword: undefined;
   Outbox: undefined;
   FarmerDetail: { farmerId: string; farmerName: string };

@@ -17,6 +17,8 @@ import { useAuth } from "../context/AuthContext";
 import { cacheFarmers, searchCachedFarmers, type CachedFarmer } from "../db/farmersCache";
 import { api } from "../lib/api";
 import type { RootStackParamList } from "../navigation/types";
+import { card, colors, input, radius, shadow } from "../theme";
+import { Avatar, Logo } from "../components/ui";
 
 type Props = NativeStackScreenProps<RootStackParamList, "FarmerList">;
 
@@ -44,32 +46,32 @@ function AddFarmerForm({ onCreated }: { onCreated: () => void }) {
   }
 
   return (
-    <View style={{ backgroundColor: "white", borderRadius: 10, padding: 12, marginBottom: 12 }}>
+    <View style={{ backgroundColor: "white", borderRadius: 14, padding: 12, marginBottom: 12 }}>
       <Text style={{ fontWeight: "600", marginBottom: 8 }}>Add Farmer</Text>
       <TextInput
         placeholder="Full name"
         value={name}
         onChangeText={setName}
-        style={{ backgroundColor: "#f7f3ee", borderRadius: 8, padding: 10, marginBottom: 8 }}
+        style={{ backgroundColor: "#f6f2ea", borderRadius: 12, padding: 10, marginBottom: 8 }}
       />
       <TextInput
         placeholder="Phone e.g. +254712345678"
         value={phone}
         onChangeText={setPhone}
         keyboardType="phone-pad"
-        style={{ backgroundColor: "#f7f3ee", borderRadius: 8, padding: 10, marginBottom: 8 }}
+        style={{ backgroundColor: "#f6f2ea", borderRadius: 12, padding: 10, marginBottom: 8 }}
       />
       <TextInput
         placeholder="National ID (optional)"
         value={nationalId}
         onChangeText={setNationalId}
-        style={{ backgroundColor: "#f7f3ee", borderRadius: 8, padding: 10, marginBottom: 8 }}
+        style={{ backgroundColor: "#f6f2ea", borderRadius: 12, padding: 10, marginBottom: 8 }}
       />
-      {error && <Text style={{ color: "#b3413b", marginBottom: 8 }}>{error}</Text>}
+      {error && <Text style={{ color: "#b73a2c", marginBottom: 8 }}>{error}</Text>}
       <TouchableOpacity
         onPress={submit}
         disabled={saving || !name || !phone}
-        style={{ backgroundColor: "#7a4a26", borderRadius: 8, padding: 10, alignItems: "center", opacity: saving ? 0.5 : 1 }}
+        style={{ backgroundColor: "#2b6a4b", borderRadius: 12, padding: 10, alignItems: "center", opacity: saving ? 0.5 : 1 }}
       >
         {saving ? <ActivityIndicator color="white" /> : <Text style={{ color: "white" }}>Save Farmer</Text>}
       </TouchableOpacity>
@@ -102,27 +104,27 @@ function AddStaffForm({ onCreated }: { onCreated: () => void }) {
   }
 
   return (
-    <View style={{ backgroundColor: "white", borderRadius: 10, padding: 12, marginBottom: 12 }}>
+    <View style={{ backgroundColor: "white", borderRadius: 14, padding: 12, marginBottom: 12 }}>
       <Text style={{ fontWeight: "600", marginBottom: 8 }}>Add Staff Account</Text>
       <TextInput
         placeholder="Full name"
         value={name}
         onChangeText={setName}
-        style={{ backgroundColor: "#f7f3ee", borderRadius: 8, padding: 10, marginBottom: 8 }}
+        style={{ backgroundColor: "#f6f2ea", borderRadius: 12, padding: 10, marginBottom: 8 }}
       />
       <TextInput
         placeholder="Phone"
         value={phone}
         onChangeText={setPhone}
         keyboardType="phone-pad"
-        style={{ backgroundColor: "#f7f3ee", borderRadius: 8, padding: 10, marginBottom: 8 }}
+        style={{ backgroundColor: "#f6f2ea", borderRadius: 12, padding: 10, marginBottom: 8 }}
       />
       <TextInput
         placeholder="Temporary password"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
-        style={{ backgroundColor: "#f7f3ee", borderRadius: 8, padding: 10, marginBottom: 8 }}
+        style={{ backgroundColor: "#f6f2ea", borderRadius: 12, padding: 10, marginBottom: 8 }}
       />
       <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
         {(["CLERK", "ADMIN"] as StaffRole[]).map((r) => (
@@ -132,20 +134,20 @@ function AddStaffForm({ onCreated }: { onCreated: () => void }) {
             style={{
               flex: 1,
               padding: 10,
-              borderRadius: 8,
+              borderRadius: 12,
               alignItems: "center",
-              backgroundColor: role === r ? "#7a4a26" : "#f7f3ee",
+              backgroundColor: role === r ? "#2b6a4b" : "#f6f2ea",
             }}
           >
-            <Text style={{ color: role === r ? "white" : "#5f3a1e" }}>{r}</Text>
+            <Text style={{ color: role === r ? "white" : "#1d4d36" }}>{r}</Text>
           </TouchableOpacity>
         ))}
       </View>
-      {error && <Text style={{ color: "#b3413b", marginBottom: 8 }}>{error}</Text>}
+      {error && <Text style={{ color: "#b73a2c", marginBottom: 8 }}>{error}</Text>}
       <TouchableOpacity
         onPress={submit}
         disabled={saving || !name || !phone || password.length < 8}
-        style={{ backgroundColor: "#7a4a26", borderRadius: 8, padding: 10, alignItems: "center", opacity: saving ? 0.5 : 1 }}
+        style={{ backgroundColor: "#2b6a4b", borderRadius: 12, padding: 10, alignItems: "center", opacity: saving ? 0.5 : 1 }}
       >
         {saving ? <ActivityIndicator color="white" /> : <Text style={{ color: "white" }}>Save Staff Account</Text>}
       </TouchableOpacity>
@@ -164,143 +166,141 @@ export function FarmerListScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [showAddFarmer, setShowAddFarmer] = useState(false);
   const [showAddStaff, setShowAddStaff] = useState(false);
+  const [showRemoved, setShowRemoved] = useState(false);
 
   const load = useCallback(async (query: string) => {
     setLoading(true);
     const net = await NetInfo.fetch();
     if (net.isConnected) {
       try {
-        const results = await api.listFarmers(query || undefined);
+        const results = await api.listFarmers(query || undefined, { archived: showRemoved });
         setFarmers(results);
-        cacheFarmers(results);
+        if (!showRemoved) cacheFarmers(results, { replaceAll: !query });
         setLoading(false);
         return;
       } catch {
         // fall through to cache
       }
     }
-    setFarmers(searchCachedFarmers(query));
+    setFarmers(showRemoved ? [] : searchCachedFarmers(query));
     setLoading(false);
-  }, []);
+  }, [showRemoved]);
 
   useEffect(() => {
-    load("");
+    load(search);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load]);
 
+  const tile = (label: string, onPress: () => void) => (
+    <TouchableOpacity
+      key={label}
+      onPress={onPress}
+      activeOpacity={0.8}
+      style={{ ...card, flex: 1, paddingVertical: 12, paddingHorizontal: 8, alignItems: "center" }}
+    >
+      <Text style={{ color: colors.primaryDark, fontWeight: "700", fontSize: 13 }}>{label}</Text>
+    </TouchableOpacity>
+  );
+
   return (
-    <View style={{ flex: 1, backgroundColor: "#f7f3ee" }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <View
         style={{
           paddingTop: insets.top + 12,
-          paddingHorizontal: 16,
-          paddingBottom: 16,
-          backgroundColor: "#7a4a26",
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
+          paddingHorizontal: 18,
+          paddingBottom: 22,
+          backgroundColor: colors.primaryDeep,
+          borderBottomLeftRadius: 26,
+          borderBottomRightRadius: 26,
         }}
       >
-        <View>
-          <Text style={{ color: "white", fontWeight: "600" }}>{staffSession?.organization.name}</Text>
-          <Text style={{ color: "#ede2d3", fontSize: 12 }}>
-            {staffSession?.staff.name} · {staffSession?.staff.role}
-          </Text>
-        </View>
-        <View style={{ flexDirection: "row", gap: 16 }}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate("ChangePassword")}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Text style={{ color: "#ede2d3" }}>Password</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={logout} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={{ color: "white", fontWeight: "600" }}>Log out</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={{ padding: 12 }}>
-        <SyncBadge />
-      </View>
-
-      <View style={{ paddingHorizontal: 12 }}>
-        {isAdmin && (
-          <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+            <Logo size={32} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: "white", fontWeight: "800", fontSize: 16 }} numberOfLines={1}>
+                {staffSession?.organization.name}
+              </Text>
+              <Text style={{ color: "#cfe0d5", fontSize: 12 }}>
+                {staffSession?.staff.name} · {staffSession?.staff.role === "ADMIN" ? "Administrator" : "Clerk"}
+              </Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: "row", gap: 16 }}>
             <TouchableOpacity
-              onPress={() => navigation.navigate("Dashboard")}
-              style={{
-                flex: 1,
-                backgroundColor: "white",
-                borderColor: "#7a4a26",
-                borderWidth: 1,
-                borderRadius: 10,
-                padding: 12,
-                alignItems: "center",
-              }}
+              onPress={() => navigation.navigate("ChangePassword")}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Text style={{ color: "#7a4a26", fontWeight: "700" }}>Dashboard</Text>
+              <Text style={{ color: "#cfe0d5" }}>Account</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => navigation.navigate("Staff")}
-              style={{
-                flex: 1,
-                backgroundColor: "white",
-                borderColor: "#7a4a26",
-                borderWidth: 1,
-                borderRadius: 10,
-                padding: 12,
-                alignItems: "center",
-              }}
-            >
-              <Text style={{ color: "#7a4a26", fontWeight: "700" }}>Manage staff</Text>
+            <TouchableOpacity onPress={logout} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={{ color: "white", fontWeight: "700" }}>Log out</Text>
             </TouchableOpacity>
           </View>
-        )}
+        </View>
+      </View>
+
+      <View style={{ paddingHorizontal: 14, paddingTop: 14 }}>
+        <SyncBadge />
+        <View style={{ height: 10 }} />
         <TouchableOpacity
           onPress={() => navigation.navigate("RecordReceipt", undefined)}
+          activeOpacity={0.85}
           style={{
-            backgroundColor: "#7a4a26",
-            borderRadius: 10,
-            padding: 14,
+            backgroundColor: colors.cherry,
+            borderRadius: radius.md,
+            padding: 16,
             alignItems: "center",
-            marginBottom: 12,
+            marginBottom: 10,
+            ...shadow,
           }}
         >
-          <Text style={{ color: "white", fontWeight: "700", fontSize: 16 }}>
-            + Record Cherry Delivery
-          </Text>
+          <Text style={{ color: "white", fontWeight: "800", fontSize: 16 }}>+ Record Cherry Delivery</Text>
         </TouchableOpacity>
+
+        {isAdmin && (
+          <View style={{ flexDirection: "row", gap: 8, marginBottom: 10 }}>
+            {tile("Dashboard", () => navigation.navigate("Dashboard"))}
+            {tile("Batches", () => navigation.navigate("Batches"))}
+            {tile("Staff", () => navigation.navigate("Staff"))}
+          </View>
+        )}
 
         <TextInput
           placeholder="Search farmer by name or phone"
+          placeholderTextColor={colors.muted}
           value={search}
           onChangeText={(t) => {
             setSearch(t);
             load(t);
           }}
-          style={{ backgroundColor: "white", borderRadius: 8, padding: 12, marginBottom: 12 }}
+          style={{ ...input, marginBottom: 10 }}
         />
 
-        <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+        <View style={{ flexDirection: "row", gap: 8, marginBottom: 10 }}>
           <TouchableOpacity
             onPress={() => setShowAddFarmer((v) => !v)}
-            style={{ flex: 1, backgroundColor: "white", borderRadius: 8, padding: 10, alignItems: "center" }}
+            style={{ flex: 1, backgroundColor: colors.primaryTint, borderRadius: radius.sm, padding: 10, alignItems: "center" }}
           >
-            <Text style={{ color: "#7a4a26", fontWeight: "600" }}>
-              {showAddFarmer ? "Cancel" : "+ Farmer"}
-            </Text>
+            <Text style={{ color: colors.primaryDark, fontWeight: "700" }}>{showAddFarmer ? "Cancel" : "+ Farmer"}</Text>
           </TouchableOpacity>
           {isAdmin && (
             <TouchableOpacity
               onPress={() => setShowAddStaff((v) => !v)}
-              style={{ flex: 1, backgroundColor: "white", borderRadius: 8, padding: 10, alignItems: "center" }}
+              style={{ flex: 1, backgroundColor: colors.primaryTint, borderRadius: radius.sm, padding: 10, alignItems: "center" }}
             >
-              <Text style={{ color: "#7a4a26", fontWeight: "600" }}>
-                {showAddStaff ? "Cancel" : "+ Staff"}
-              </Text>
+              <Text style={{ color: colors.primaryDark, fontWeight: "700" }}>{showAddStaff ? "Cancel" : "+ Staff"}</Text>
             </TouchableOpacity>
           )}
         </View>
+
+        {isAdmin && (
+          <TouchableOpacity onPress={() => setShowRemoved((v) => !v)} style={{ marginBottom: 10 }}>
+            <Text style={{ color: colors.primary, fontWeight: "700" }}>
+              {showRemoved ? "← Back to active farmers" : "Show removed farmers"}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {showAddFarmer && (
           <AddFarmerForm
@@ -310,9 +310,7 @@ export function FarmerListScreen({ navigation }: Props) {
             }}
           />
         )}
-        {showAddStaff && isAdmin && (
-          <AddStaffForm onCreated={() => setShowAddStaff(false)} />
-        )}
+        {showAddStaff && isAdmin && <AddStaffForm onCreated={() => setShowAddStaff(false)} />}
       </View>
 
       {loading ? (
@@ -321,32 +319,26 @@ export function FarmerListScreen({ navigation }: Props) {
         <FlatList
           data={farmers}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 24 }}
+          contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 32 }}
           renderItem={({ item }) => (
             <TouchableOpacity
-              onPress={() =>
-                navigation.navigate("FarmerDetail", { farmerId: item.id, farmerName: item.name })
-              }
-              style={{
-                backgroundColor: "white",
-                borderRadius: 10,
-                padding: 14,
-                marginBottom: 8,
-                flexDirection: "row",
-                justifyContent: "space-between",
-              }}
+              onPress={() => navigation.navigate("FarmerDetail", { farmerId: item.id, farmerName: item.name })}
+              activeOpacity={0.8}
+              style={{ ...card, padding: 12, marginBottom: 8, flexDirection: "row", alignItems: "center", gap: 12 }}
             >
-              <View>
-                <Text style={{ fontWeight: "600" }}>{item.name}</Text>
-                <Text style={{ color: "#a9764a", fontSize: 12 }}>{item.phone}</Text>
+              <Avatar name={item.name} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontWeight: "700", color: colors.ink }}>{item.name}</Text>
+                <Text style={{ color: colors.muted, fontSize: 12 }}>{item.phone}</Text>
               </View>
-              <Text style={{ fontWeight: "700" }}>{item.cumulativeWeightKg} kg</Text>
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={{ fontWeight: "800", color: colors.primaryDark, fontSize: 16 }}>{item.cumulativeWeightKg} kg</Text>
+                <Text style={{ color: colors.muted, fontSize: 10 }}>delivered</Text>
+              </View>
             </TouchableOpacity>
           )}
           ListEmptyComponent={
-            <Text style={{ textAlign: "center", color: "#a9764a", marginTop: 24 }}>
-              No farmers found.
-            </Text>
+            <Text style={{ textAlign: "center", color: colors.muted, marginTop: 24 }}>No farmers found.</Text>
           }
         />
       )}

@@ -1,10 +1,14 @@
 import type {
+  BatchDetail,
+  BatchSummary,
   DashboardSummary,
   DayBreakdown,
+  FarmerBalance,
   Farmer,
   FarmerAuthResponse,
   Receipt,
   ReceiptWithDetails,
+  Settlement,
   StaffLoginResponse,
   StaffRole,
   StaffUser,
@@ -28,6 +32,8 @@ export interface CreateReceiptPayload {
   clientId: string;
   /** ISO timestamp captured client-side; defaults to now if omitted. */
   deliveredAt?: string;
+  /** Admin only. */
+  pricePerKg?: number;
   photo?: ReceiptPhoto | null;
 }
 
@@ -130,13 +136,25 @@ export class CoffeeApiClient {
     });
   }
 
-  listFarmers(search?: string) {
-    const qs = search ? `?search=${encodeURIComponent(search)}` : "";
-    return this.request<Farmer[]>(`/farmers${qs}`);
+  listFarmers(search?: string, opts: { archived?: boolean } = {}) {
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (opts.archived) params.set("archived", "true");
+    const qs = params.toString();
+    return this.request<Farmer[]>(`/farmers${qs ? `?${qs}` : ""}`);
+  }
+
+  /** Removes a farmer from the list. Their deliveries and payments are kept. */
+  archiveFarmer(id: string) {
+    return this.request<Farmer & { balance: FarmerBalance }>(`/farmers/${id}/archive`, { method: "POST" });
+  }
+
+  restoreFarmer(id: string) {
+    return this.request<Farmer & { balance: FarmerBalance }>(`/farmers/${id}/restore`, { method: "POST" });
   }
 
   getFarmer(id: string) {
-    return this.request<Farmer & { receipts: Receipt[] }>(`/farmers/${id}`);
+    return this.request<Farmer & { receipts: Receipt[]; balance: FarmerBalance }>(`/farmers/${id}`);
   }
 
   createFarmer(input: { name: string; phone: string; nationalId?: string | null }) {
@@ -147,7 +165,7 @@ export class CoffeeApiClient {
   }
 
   getMyFarmerProfile() {
-    return this.request<Farmer>("/farmers/me");
+    return this.request<Farmer & { balance: FarmerBalance }>("/farmers/me");
   }
 
   getMyReceipts() {
@@ -162,6 +180,9 @@ export class CoffeeApiClient {
     }
     form.append("weightKg", String(payload.weightKg));
     form.append("clientId", payload.clientId);
+    if (payload.pricePerKg !== undefined) {
+      form.append("pricePerKg", String(payload.pricePerKg));
+    }
     form.append("deliveredAt", payload.deliveredAt ?? new Date().toISOString());
     if (payload.photo) {
       if (typeof Blob !== "undefined" && payload.photo instanceof Blob) {
@@ -194,10 +215,71 @@ export class CoffeeApiClient {
     });
   }
 
-  adjustReceipt(id: string, input: { weightKg?: number; receiptNumber?: string }) {
+  adjustReceipt(id: string, input: { weightKg?: number; receiptNumber?: string; pricePerKg?: number | null }) {
     return this.request<Receipt>(`/receipts/${id}`, {
       method: "PATCH",
       body: JSON.stringify(input),
+    });
+  }
+
+  /** Pay for some kilos of one delivery (omit weightKg to pay everything still unpaid on it). */
+  recordSettlement(receiptId: string, input: { weightKg?: number; pricePerKg?: number; note?: string }) {
+    return this.request<{ settlement: Settlement; receipt: Receipt }>(`/receipts/${receiptId}/settlements`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  voidSettlement(receiptId: string, settlementId: string) {
+    return this.request<Receipt>(`/receipts/${receiptId}/settlements/${settlementId}`, { method: "DELETE" });
+  }
+
+  /** Pay a farmer for some kilos; applied to their oldest unpaid deliveries first. */
+  settleFarmer(farmerId: string, input: { weightKg: number; pricePerKg?: number; note?: string }) {
+    return this.request<{ settlements: Settlement[]; balance: FarmerBalance }>(`/farmers/${farmerId}/settlements`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  setFarmerPrice(farmerId: string, pricePerKg: number, scope: "unpriced" | "unsettled" = "unpriced") {
+    return this.request<{ updated: number; balance: FarmerBalance }>(`/farmers/${farmerId}/price`, {
+      method: "POST",
+      body: JSON.stringify({ pricePerKg, scope }),
+    });
+  }
+
+  listBatches() {
+    return this.request<BatchSummary[]>("/batches");
+  }
+
+  getBatch(id: string) {
+    return this.request<BatchDetail>(`/batches/${id}`);
+  }
+
+  /** Publish an agreed price: it applies to everyone's unpaid kilos except farmers in heldFarmerIds. */
+  createBatch(input: { pricePerKg: number; name?: string; note?: string; heldFarmerIds?: string[] }) {
+    return this.request<BatchDetail>("/batches", { method: "POST", body: JSON.stringify(input) });
+  }
+
+  holdFarmerInBatch(batchId: string, farmerId: string, hold: boolean) {
+    return this.request<BatchDetail>(`/batches/${batchId}/hold`, {
+      method: "POST",
+      body: JSON.stringify({ farmerId, hold }),
+    });
+  }
+
+  applyBatchToNewDeliveries(batchId: string) {
+    return this.request<{ pricedReceipts: number; farmers: BatchDetail["farmers"] }>(`/batches/${batchId}/apply`, {
+      method: "POST",
+    });
+  }
+
+  /** Pay under a batch. Omit payments to pay everyone in full; omit weightKg to pay a farmer in full. */
+  payBatch(batchId: string, payments?: { farmerId: string; weightKg?: number }[], note?: string) {
+    return this.request<{ settlements: number; farmers: BatchDetail["farmers"] }>(`/batches/${batchId}/pay`, {
+      method: "POST",
+      body: JSON.stringify({ payments, note }),
     });
   }
 

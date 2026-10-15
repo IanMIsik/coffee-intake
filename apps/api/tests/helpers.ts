@@ -10,7 +10,7 @@ export const PASSWORD = "testpass123";
 
 export async function resetDb() {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE "OtpCode","Receipt","Farmer","StaffUser","Organization" RESTART IDENTITY CASCADE'
+    'TRUNCATE "Settlement","OtpCode","Receipt","Farmer","StaffUser","Organization" RESTART IDENTITY CASCADE'
   );
 }
 

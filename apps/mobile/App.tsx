@@ -6,6 +6,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { initDatabase } from "./src/db/database";
 import { ChangePasswordScreen } from "./src/screens/ChangePasswordScreen";
+import { BatchesScreen } from "./src/screens/BatchesScreen";
 import { DashboardScreen } from "./src/screens/DashboardScreen";
 import { FarmerDetailScreen } from "./src/screens/FarmerDetailScreen";
 import { FarmerHomeScreen } from "./src/screens/FarmerHomeScreen";
@@ -31,7 +32,15 @@ function RootNavigator() {
   }
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        headerStyle: { backgroundColor: "#1d4d36" },
+        headerTintColor: "white",
+        headerTitleStyle: { fontWeight: "700" },
+        contentStyle: { backgroundColor: "#f6f2ea" },
+      }}
+    >
       {!session ? (
         <>
           <Stack.Screen name="Login" component={LoginScreen} />
@@ -46,6 +55,11 @@ function RootNavigator() {
             name="Dashboard"
             component={DashboardScreen}
             options={{ headerShown: true, title: "Dashboard" }}
+          />
+          <Stack.Screen
+            name="Batches"
+            component={BatchesScreen}
+            options={{ headerShown: true, title: "Batches & prices" }}
           />
           <Stack.Screen
             name="Staff"

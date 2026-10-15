@@ -1,12 +1,14 @@
 import { ApiError } from "@coffee/shared";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useState } from "react";
-import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Text, TextInput, TouchableOpacity } from "react-native";
+import { AuthShell, Button } from "../components/ui";
 import { ServerSettings } from "../components/ServerSettings";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import { getOrganizationSlug } from "../lib/config";
 import type { RootStackParamList } from "../navigation/types";
+import { colors, input } from "../theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Login">;
 
@@ -34,39 +36,33 @@ export function LoginScreen({ navigation }: Props) {
   }
 
   return (
-    <View style={{ flex: 1, justifyContent: "center", padding: 24, backgroundColor: "#f7f3ee" }}>
-      <Text style={{ fontSize: 22, fontWeight: "600", color: "#5f3a1e", marginBottom: 24 }}>
-        Coffee Intake — Staff Login
-      </Text>
+    <AuthShell title="Welcome back" subtitle="Sign in to record and manage deliveries.">
       <TextInput
         placeholder="Phone number"
+        placeholderTextColor={colors.muted}
         value={phone}
         onChangeText={setPhone}
         keyboardType="phone-pad"
-        style={{ backgroundColor: "white", borderRadius: 8, padding: 12, marginBottom: 12 }}
+        style={{ ...input, marginBottom: 12 }}
       />
       <TextInput
         placeholder="Password"
+        placeholderTextColor={colors.muted}
         value={password}
         onChangeText={setPassword}
         secureTextEntry
-        style={{ backgroundColor: "white", borderRadius: 8, padding: 12, marginBottom: 12 }}
+        style={{ ...input, marginBottom: 12 }}
       />
-      {error && <Text style={{ color: "#b3413b", marginBottom: 12 }}>{error}</Text>}
-      <TouchableOpacity
-        onPress={onSubmit}
-        disabled={loading}
-        style={{ backgroundColor: "#7a4a26", borderRadius: 8, padding: 14, alignItems: "center" }}
-      >
-        {loading ? <ActivityIndicator color="white" /> : <Text style={{ color: "white" }}>Sign in</Text>}
-      </TouchableOpacity>
-      <TouchableOpacity
-        onPress={() => navigation.navigate("FarmerLogin")}
-        style={{ padding: 14, alignItems: "center" }}
-      >
-        <Text style={{ color: "#7a4a26" }}>Farmer? View your deliveries</Text>
+      {error && (
+        <Text style={{ color: colors.cherry, backgroundColor: colors.cherryTint, padding: 12, borderRadius: 12, marginBottom: 12 }}>
+          {error}
+        </Text>
+      )}
+      <Button title="Sign in" onPress={onSubmit} loading={loading} />
+      <TouchableOpacity onPress={() => navigation.navigate("FarmerLogin")} style={{ padding: 16, alignItems: "center" }}>
+        <Text style={{ color: colors.primary, fontWeight: "600" }}>Farmer? View your deliveries</Text>
       </TouchableOpacity>
       <ServerSettings />
-    </View>
+    </AuthShell>
   );
 }

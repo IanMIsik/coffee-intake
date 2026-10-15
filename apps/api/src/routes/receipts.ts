@@ -1,13 +1,22 @@
 import { Prisma } from "@prisma/client";
 import { Router } from "express";
 import multer from "multer";
-import { adjustReceiptSchema, createReceiptSchema, settleReceiptSchema } from "@coffee/shared";
+import {
+  adjustReceiptSchema,
+  createReceiptSchema,
+  recordSettlementSchema,
+  settleReceiptSchema,
+} from "@coffee/shared";
 import { prisma } from "../db";
 import { authOrgId, requireAuth, requireRole, requireStaff } from "../auth/middleware";
 import { getObjectStorage } from "../storage";
 import { createNotificationProvider } from "../notifications";
 import { asyncHandler } from "../lib/asyncHandler";
 import { presentReceipt, presentReceipts } from "../lib/photos";
+import { SettlementError, lockReceipts, payForReceipt, recomputeReceipt } from "../lib/settlements";
+
+const isAdmin = (req: { auth?: { kind: string; role?: string } }) =>
+  req.auth?.kind === "staff" && req.auth.role === "ADMIN";
 
 export const receiptsRouter = Router();
 
@@ -46,6 +55,7 @@ receiptsRouter.get("/:id", asyncHandler(async (req, res) => {
   const receipt = await prisma.receipt.findFirst({
     where: { id: req.params.id, organizationId: authOrgId(req) },
     include: {
+      settlements: { orderBy: { createdAt: "asc" } },
       farmer: true,
       organization: true,
       recordedByStaff: { select: { id: true, name: true } },
@@ -62,9 +72,12 @@ receiptsRouter.patch("/:id", asyncHandler(async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.issues[0].message });
   }
-  const { weightKg, receiptNumber } = parsed.data;
-  if (weightKg === undefined && receiptNumber === undefined) {
+  const { weightKg, receiptNumber, pricePerKg } = parsed.data;
+  if (weightKg === undefined && receiptNumber === undefined && pricePerKg === undefined) {
     return res.status(400).json({ error: "Nothing to update" });
+  }
+  if (pricePerKg !== undefined && !isAdmin(req)) {
+    return res.status(403).json({ error: "Only an admin can set or change prices" });
   }
 
   const organizationId = authOrgId(req);
@@ -86,11 +99,19 @@ receiptsRouter.patch("/:id", asyncHandler(async (req, res) => {
 
   try {
     const [receipt] = await prisma.$transaction(async (tx) => {
-      const updated = await tx.receipt.update({
+      await lockReceipts(tx, [existing.id]);
+      const current = await tx.receipt.findUniqueOrThrow({ where: { id: existing.id } });
+      if (weightKg !== undefined && current.settledKg.gt(weightKg)) {
+        throw new SettlementError(
+          `${current.settledKg.toFixed(2)} kg of this delivery has already been paid, so the weight can't be set below that`
+        );
+      }
+      let updated = await tx.receipt.update({
         where: { id: existing.id },
         data: {
           ...(receiptNumber !== undefined ? { receiptNumber } : {}),
           ...(weightKg !== undefined ? { weightKg } : {}),
+          ...(pricePerKg !== undefined ? { pricePerKg, batchId: null } : {}),
           editedAt: new Date(),
           editedByStaffId: staffUserId,
         },
@@ -98,11 +119,13 @@ receiptsRouter.patch("/:id", asyncHandler(async (req, res) => {
       if (weightKg !== undefined) {
         // Correct the farmer's running total by the delta rather than recomputing
         // from scratch, so this stays a cheap single-row update either way.
-        const delta = weightKg - Number(existing.weightKg);
+        const delta = weightKg - Number(current.weightKg);
         await tx.farmer.update({
           where: { id: existing.farmerId },
           data: { cumulativeWeightKg: { increment: delta } },
         });
+        // A longer delivery that was fully paid is now partly unpaid, and the reverse.
+        updated = await recomputeReceipt(tx, existing.id);
       }
       return [updated] as const;
     });
@@ -128,11 +151,76 @@ receiptsRouter.patch("/:id/settle", requireRole("ADMIN"), asyncHandler(async (re
     return res.status(404).json({ error: "Receipt not found" });
   }
 
-  const receipt = await prisma.receipt.update({
-    where: { id: existing.id },
-    data: parsed.data.settled
-      ? { settled: true, settledAt: new Date(), settledByStaffId: staffUserId }
-      : { settled: false, settledAt: null, settledByStaffId: null },
+  // Older app versions use this on/off switch. "Settled" pays whatever is still unpaid (at the
+  // delivery's price, if it has one); "not settled" voids every payment on the delivery.
+  const receipt = await prisma.$transaction(async (tx) => {
+    await lockReceipts(tx, [existing.id]);
+    if (parsed.data.settled) {
+      const current = await tx.receipt.findUniqueOrThrow({ where: { id: existing.id } });
+      const remaining = current.weightKg.minus(current.settledKg);
+      if (remaining.gt(0)) {
+        await payForReceipt(tx, { receiptId: existing.id, weightKg: remaining, pricePerKg: null, staffId: staffUserId });
+      }
+    } else {
+      await tx.settlement.updateMany({
+        where: { receiptId: existing.id, voidedAt: null },
+        data: { voidedAt: new Date(), voidedByStaffId: staffUserId },
+      });
+    }
+    return recomputeReceipt(tx, existing.id);
+  });
+  res.json(await presentReceipt(receipt));
+}));
+
+// Record a payment for some (or all) of one delivery.
+receiptsRouter.post("/:id/settlements", requireRole("ADMIN"), asyncHandler(async (req, res) => {
+  const parsed = recordSettlementSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0].message });
+  }
+  const organizationId = authOrgId(req);
+  const staffUserId = req.auth!.kind === "staff" ? req.auth!.staffUserId : "";
+  const existing = await prisma.receipt.findFirst({ where: { id: req.params.id, organizationId } });
+  if (!existing) {
+    return res.status(404).json({ error: "Receipt not found" });
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    await lockReceipts(tx, [existing.id]);
+    const current = await tx.receipt.findUniqueOrThrow({ where: { id: existing.id } });
+    const weight =
+      parsed.data.weightKg !== undefined
+        ? new Prisma.Decimal(parsed.data.weightKg)
+        : current.weightKg.minus(current.settledKg);
+    const settlement = await payForReceipt(tx, {
+      receiptId: existing.id,
+      weightKg: weight,
+      pricePerKg: parsed.data.pricePerKg !== undefined ? new Prisma.Decimal(parsed.data.pricePerKg) : null,
+      note: parsed.data.note,
+      staffId: staffUserId,
+    });
+    return { settlement, receipt: await tx.receipt.findUniqueOrThrow({ where: { id: existing.id } }) };
+  });
+  res.status(201).json({ settlement: result.settlement, receipt: await presentReceipt(result.receipt) });
+}));
+
+// Void a payment: it stays in the record but stops counting.
+receiptsRouter.delete("/:id/settlements/:settlementId", requireRole("ADMIN"), asyncHandler(async (req, res) => {
+  const organizationId = authOrgId(req);
+  const staffUserId = req.auth!.kind === "staff" ? req.auth!.staffUserId : "";
+  const settlement = await prisma.settlement.findFirst({
+    where: { id: req.params.settlementId, receiptId: req.params.id, organizationId, voidedAt: null },
+  });
+  if (!settlement) {
+    return res.status(404).json({ error: "Payment not found" });
+  }
+  const receipt = await prisma.$transaction(async (tx) => {
+    await lockReceipts(tx, [settlement.receiptId]);
+    await tx.settlement.update({
+      where: { id: settlement.id },
+      data: { voidedAt: new Date(), voidedByStaffId: staffUserId },
+    });
+    return recomputeReceipt(tx, settlement.receiptId);
   });
   res.json(await presentReceipt(receipt));
 }));
@@ -149,7 +237,10 @@ receiptsRouter.post("/", upload.single("photo"), asyncHandler(async (req, res) =
   }
   const organizationId = authOrgId(req);
   const staffUserId = req.auth!.kind === "staff" ? req.auth!.staffUserId : "";
-  const { farmerId, receiptNumber, weightKg, clientId, deliveredAt } = parsed.data;
+  const { farmerId, receiptNumber, weightKg, clientId, deliveredAt, pricePerKg } = parsed.data;
+  if (pricePerKg !== undefined && !isAdmin(req)) {
+    return res.status(403).json({ error: "Only an admin can set prices" });
+  }
 
   // Idempotency: if this client-generated receipt already synced, return it as-is
   // instead of erroring, so a retried offline sync is always safe.
@@ -163,6 +254,9 @@ receiptsRouter.post("/", upload.single("photo"), asyncHandler(async (req, res) =
   const farmer = await prisma.farmer.findFirst({ where: { id: farmerId, organizationId } });
   if (!farmer) {
     return res.status(404).json({ error: "Farmer not found" });
+  }
+  if (farmer.archivedAt) {
+    return res.status(409).json({ error: `${farmer.name} has been removed from the list. Restore them to record new deliveries.` });
   }
 
   if (receiptNumber) {
@@ -210,6 +304,7 @@ receiptsRouter.post("/", upload.single("photo"), asyncHandler(async (req, res) =
           recordedByStaffId: staffUserId,
           clientId,
           deliveredAt,
+          ...(pricePerKg !== undefined ? { pricePerKg } : {}),
         },
       });
       const farmerAfter = await tx.farmer.update({

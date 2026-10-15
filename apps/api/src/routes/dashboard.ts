@@ -37,15 +37,16 @@ dashboardRouter.get(
       todayAgg,
       yesterdayAgg,
       todayFarmerRows,
-      unsettledAgg,
+      unpaidRows,
       rangeAgg,
       settledInRangeAgg,
+      paidInRangeAgg,
       rangeFarmerCountRows,
       dailyRows,
       topFarmerRows,
       unsettledFarmerRows,
     ] = await Promise.all([
-      prisma.farmer.count({ where: { organizationId } }),
+      prisma.farmer.count({ where: { organizationId, archivedAt: null } }),
       prisma.farmer.aggregate({ where: { organizationId }, _sum: { cumulativeWeightKg: true } }),
       prisma.receipt.aggregate({
         where: { organizationId, deliveredAt: { gte: startOfToday, lt: startOfTomorrow } },
@@ -62,23 +63,30 @@ dashboardRouter.get(
         WHERE "organizationId" = ${organizationId}
           AND "deliveredAt" >= ${startOfToday} AND "deliveredAt" < ${startOfTomorrow}
       `,
-      prisma.receipt.aggregate({
-        where: { organizationId, settled: false },
-        _sum: { weightKg: true },
-        _count: true,
-      }),
+      // Unpaid kilos (a delivery can be partly paid), what they are worth at their agreed
+      // prices, and the kilos that can't be valued yet because no price was set.
+      prisma.$queryRaw<
+        { kg: string | null; receipts: bigint; owed: string | null; unpriced: string | null }[]
+      >`
+        SELECT SUM("weightKg" - "settledKg")::text AS kg,
+               COUNT(*)::bigint AS receipts,
+               SUM(("weightKg" - "settledKg") * "pricePerKg") FILTER (WHERE "pricePerKg" IS NOT NULL)::text AS owed,
+               SUM("weightKg" - "settledKg") FILTER (WHERE "pricePerKg" IS NULL)::text AS unpriced
+        FROM "Receipt"
+        WHERE "organizationId" = ${organizationId} AND "settledKg" < "weightKg"
+      `,
       prisma.receipt.aggregate({
         where: { organizationId, deliveredAt: { gte: rangeFrom, lt: rangeToExclusive } },
         _sum: { weightKg: true },
         _count: true,
       }),
       prisma.receipt.aggregate({
-        where: {
-          organizationId,
-          settled: true,
-          deliveredAt: { gte: rangeFrom, lt: rangeToExclusive },
-        },
-        _sum: { weightKg: true },
+        where: { organizationId, deliveredAt: { gte: rangeFrom, lt: rangeToExclusive } },
+        _sum: { settledKg: true },
+      }),
+      prisma.settlement.aggregate({
+        where: { organizationId, voidedAt: null, createdAt: { gte: rangeFrom, lt: rangeToExclusive } },
+        _sum: { amount: true },
       }),
       prisma.$queryRaw<{ farmerCount: bigint }[]>`
         SELECT COUNT(DISTINCT "farmerId")::bigint AS "farmerCount"
@@ -109,21 +117,24 @@ dashboardRouter.get(
         LIMIT 5
       `,
       prisma.$queryRaw<
-        { farmerId: string; name: string; phone: string; unsettledKg: string; receiptCount: bigint }[]
+        { farmerId: string; name: string; phone: string; unsettledKg: string; amountOwed: string | null; receiptCount: bigint }[]
       >`
         SELECT r."farmerId" AS "farmerId", f.name AS name, f.phone AS phone,
-               SUM(r."weightKg")::text AS "unsettledKg", COUNT(*)::bigint AS "receiptCount"
+               SUM(r."weightKg" - r."settledKg")::text AS "unsettledKg",
+               COALESCE(SUM((r."weightKg" - r."settledKg") * r."pricePerKg") FILTER (WHERE r."pricePerKg" IS NOT NULL), 0)::text AS "amountOwed",
+               COUNT(*)::bigint AS "receiptCount"
         FROM "Receipt" r
         JOIN "Farmer" f ON f.id = r."farmerId"
-        WHERE r."organizationId" = ${organizationId} AND r.settled = false
+        WHERE r."organizationId" = ${organizationId} AND r."settledKg" < r."weightKg"
         GROUP BY r."farmerId", f.name, f.phone
-        ORDER BY SUM(r."weightKg") DESC
+        ORDER BY SUM(r."weightKg" - r."settledKg") DESC
         LIMIT 5
       `,
     ]);
 
     const rangeTotalKg = Number(rangeAgg._sum.weightKg ?? 0);
-    const settledInRangeKg = Number(settledInRangeAgg._sum.weightKg ?? 0);
+    const settledInRangeKg = Number(settledInRangeAgg._sum.settledKg ?? 0);
+    const unpaid = unpaidRows[0];
 
     res.json({
       today,
@@ -134,8 +145,10 @@ dashboardRouter.get(
       todayReceiptCount: todayAgg._count,
       todayFarmerCount: Number(todayFarmerRows[0]?.farmerCount ?? 0),
       yesterdayKg: (yesterdayAgg._sum.weightKg ?? 0).toString(),
-      unsettledKgAllTime: (unsettledAgg._sum.weightKg ?? 0).toString(),
-      unsettledReceiptCount: unsettledAgg._count,
+      unsettledKgAllTime: unpaid?.kg ?? "0",
+      unsettledReceiptCount: Number(unpaid?.receipts ?? 0),
+      amountOwed: Number(unpaid?.owed ?? 0).toFixed(2),
+      unpricedKg: unpaid?.unpriced ?? "0",
       range: { from: fromStr, to: toStr },
       rangeTotals: {
         totalKg: rangeTotalKg.toFixed(2),
@@ -143,6 +156,7 @@ dashboardRouter.get(
         farmerCount: Number(rangeFarmerCountRows[0]?.farmerCount ?? 0),
         settledKg: settledInRangeKg.toFixed(2),
         unsettledKg: (rangeTotalKg - settledInRangeKg).toFixed(2),
+        amountPaid: Number(paidInRangeAgg._sum.amount ?? 0).toFixed(2),
       },
       dailyBreakdown: dailyRows.map((r) => ({
         date: r.date,
@@ -161,6 +175,7 @@ dashboardRouter.get(
         name: r.name,
         phone: r.phone,
         unsettledKg: r.unsettledKg,
+        amountOwed: Number(r.amountOwed ?? 0).toFixed(2),
         receiptCount: Number(r.receiptCount),
       })),
     });
@@ -197,7 +212,7 @@ dashboardRouter.get(
       SELECT r."farmerId" AS "farmerId", f.name AS name, f.phone AS phone,
              COUNT(*)::bigint AS "receiptCount",
              SUM(r."weightKg")::text AS "totalKg",
-             COALESCE(SUM(r."weightKg") FILTER (WHERE r.settled), 0)::text AS "settledKg"
+             COALESCE(SUM(r."settledKg"), 0)::text AS "settledKg"
       FROM "Receipt" r
       JOIN "Farmer" f ON f.id = r."farmerId"
       WHERE r."organizationId" = ${organizationId}

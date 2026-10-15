@@ -80,13 +80,13 @@ export function StaffUsersPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-semibold text-coffee-700">Staff Accounts</h1>
+      <h1 className="page-title">Staff Accounts</h1>
       <CreateStaffForm onCreated={refresh} />
-      {error && <p className="text-red-600 text-sm">{error}</p>}
+      {error && <p className="text-cherry-600 text-sm">{error}</p>}
       {loading ? (
         <p className="text-sm text-coffee-400">Loading...</p>
       ) : (
-        <div className="bg-white rounded-xl shadow divide-y">
+        <div className="card divide-y divide-coffee-300/60 overflow-hidden">
           {staff.map((s) => {
             const isMe = s.id === myId;
             return (
@@ -106,12 +106,12 @@ export function StaffUsersPage() {
                       setNewPassword("");
                       setResettingId(resettingId === s.id ? null : s.id);
                     }}
-                    className="text-xs rounded px-2 py-1 bg-coffee-50 text-coffee-600 hover:bg-coffee-100"
+                    className="btn !px-2.5 !py-1.5 !text-xs bg-coffee-100 text-coffee-700 hover:bg-coffee-200"
                   >
                     Reset password
                   </button>
                   <select
-                    className="border rounded px-2 py-1 text-sm disabled:opacity-50"
+                    className="input disabled:opacity-50 !py-1.5 !px-2.5 !text-sm"
                     value={s.role}
                     disabled={isMe || busyId === s.id}
                     title={isMe ? "You can't change your own role" : "Change role"}
@@ -124,7 +124,7 @@ export function StaffUsersPage() {
                     <button
                       onClick={() => remove(s)}
                       disabled={busyId === s.id}
-                      className="text-xs rounded px-2 py-1 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50"
+                      className="btn !px-2.5 !py-1.5 !text-xs bg-cherry-50 text-cherry-700 hover:bg-cherry-100"
                     >
                       Delete
                     </button>
@@ -140,7 +140,7 @@ export function StaffUsersPage() {
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <input
-                      className="border rounded px-2 py-1 text-sm flex-1 min-w-[180px]"
+                      className="input flex-1 min-w-[180px] !py-1.5 !px-2.5 !text-sm"
                       type="text"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
@@ -150,7 +150,7 @@ export function StaffUsersPage() {
                     <button
                       onClick={() => submitReset(s)}
                       disabled={busyId === s.id || (newPassword.length > 0 && newPassword.length < 8)}
-                      className="bg-coffee-600 text-white rounded px-3 py-1 text-sm disabled:opacity-50"
+                      className="btn-primary !px-3 !py-1.5 !text-xs"
                     >
                       {newPassword ? "Set password" : "Generate & set"}
                     </button>
@@ -165,17 +165,17 @@ export function StaffUsersPage() {
               )}
 
               {resetResult?.id === s.id && (
-                <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-sm">
-                  <div className="text-green-800">
+                <div className="mt-3 rounded-lg border border-coffee-300 border-coffee-200 bg-coffee-100/70 p-3 text-sm">
+                  <div className="text-coffee-700">
                     Password updated for {s.name}. Give them this password; it won't be shown again:
                   </div>
                   <div className="mt-1 flex items-center gap-2">
-                    <code className="rounded bg-white px-2 py-1 font-mono text-base border">
+                    <code className="rounded bg-white px-2 py-1 font-mono text-base border border-coffee-300">
                       {resetResult.password}
                     </code>
                     <button
                       onClick={() => navigator.clipboard?.writeText(resetResult.password)}
-                      className="text-xs underline text-green-800"
+                      className="text-xs underline text-coffee-700"
                     >
                       Copy
                     </button>
@@ -223,17 +223,17 @@ function CreateStaffForm({ onCreated }: { onCreated: () => void }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="bg-white rounded-xl shadow p-4 space-y-3">
+    <form onSubmit={onSubmit} className="card p-4 space-y-3">
       <div className="grid sm:grid-cols-4 gap-3">
         <input
-          className="border rounded px-3 py-2"
+          className="input"
           placeholder="Full name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
         />
         <input
-          className="border rounded px-3 py-2"
+          className="input"
           placeholder="Phone"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
@@ -241,14 +241,14 @@ function CreateStaffForm({ onCreated }: { onCreated: () => void }) {
         />
         <input
           type="password"
-          className="border rounded px-3 py-2"
+          className="input"
           placeholder="Temp password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
         />
         <select
-          className="border rounded px-3 py-2"
+          className="input"
           value={role}
           onChange={(e) => setRole(e.target.value as StaffRole)}
         >
@@ -256,8 +256,8 @@ function CreateStaffForm({ onCreated }: { onCreated: () => void }) {
           <option value="ADMIN">Admin</option>
         </select>
       </div>
-      {error && <p className="text-red-600 text-sm">{error}</p>}
-      <button disabled={saving} className="bg-coffee-600 text-white rounded px-4 py-2 text-sm disabled:opacity-50">
+      {error && <p className="text-cherry-600 text-sm">{error}</p>}
+      <button disabled={saving} className="btn-primary">
         {saving ? "Saving..." : "Add Staff Account"}
       </button>
     </form>

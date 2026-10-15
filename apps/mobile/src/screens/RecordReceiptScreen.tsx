@@ -110,7 +110,7 @@ export function RecordReceiptScreen({ route, navigation }: Props) {
           <Text style={{ marginBottom: 12 }}>Camera permission is needed to photograph the receipt.</Text>
           <TouchableOpacity
             onPress={requestPermission}
-            style={{ backgroundColor: "#7a4a26", padding: 12, borderRadius: 8 }}
+            style={{ backgroundColor: "#2b6a4b", padding: 12, borderRadius: 12 }}
           >
             <Text style={{ color: "white" }}>Grant permission</Text>
           </TouchableOpacity>
@@ -129,7 +129,7 @@ export function RecordReceiptScreen({ route, navigation }: Props) {
           </TouchableOpacity>
           <TouchableOpacity
             onPress={takePhoto}
-            style={{ backgroundColor: "#7a4a26", padding: 14, borderRadius: 999 }}
+            style={{ backgroundColor: "#2b6a4b", padding: 14, borderRadius: 999 }}
           >
             <Text style={{ color: "white" }}>Capture</Text>
           </TouchableOpacity>
@@ -140,16 +140,16 @@ export function RecordReceiptScreen({ route, navigation }: Props) {
 
   if (!farmerId) {
     return (
-      <View style={{ flex: 1, backgroundColor: "#f7f3ee", padding: 16 }}>
-        <Text style={{ fontSize: 18, fontWeight: "700", color: "#5f3a1e", marginBottom: 16 }}>
+      <View style={{ flex: 1, backgroundColor: "#f6f2ea", padding: 16 }}>
+        <Text style={{ fontSize: 18, fontWeight: "700", color: "#1d4d36", marginBottom: 16 }}>
           Record Receipt
         </Text>
-        <Text style={{ marginBottom: 8, color: "#a9764a" }}>Search for the farmer</Text>
+        <Text style={{ marginBottom: 8, color: "#7b7266" }}>Search for the farmer</Text>
         <TextInput
           placeholder="Search by name or phone"
           value={search}
           onChangeText={setSearch}
-          style={{ backgroundColor: "white", borderRadius: 8, padding: 12, marginBottom: 12 }}
+          style={{ backgroundColor: "white", borderRadius: 12, padding: 12, marginBottom: 12 }}
         />
         {results.map((f) => (
           <TouchableOpacity
@@ -158,22 +158,22 @@ export function RecordReceiptScreen({ route, navigation }: Props) {
               setFarmerId(f.id);
               setFarmerName(f.name);
             }}
-            style={{ backgroundColor: "white", borderRadius: 10, padding: 14, marginBottom: 8 }}
+            style={{ backgroundColor: "white", borderRadius: 14, padding: 14, marginBottom: 8 }}
           >
             <Text style={{ fontWeight: "600" }}>{f.name}</Text>
-            <Text style={{ color: "#a9764a", fontSize: 12 }}>{f.phone}</Text>
+            <Text style={{ color: "#7b7266", fontSize: 12 }}>{f.phone}</Text>
           </TouchableOpacity>
         ))}
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 14, alignItems: "center" }}>
-          <Text style={{ color: "#7a4a26" }}>Back</Text>
+          <Text style={{ color: "#2b6a4b" }}>Back</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#f7f3ee", padding: 16 }}>
-      <Text style={{ fontSize: 18, fontWeight: "700", color: "#5f3a1e", marginBottom: 16 }}>
+    <View style={{ flex: 1, backgroundColor: "#f6f2ea", padding: 16 }}>
+      <Text style={{ fontSize: 18, fontWeight: "700", color: "#1d4d36", marginBottom: 16 }}>
         Record Receipt — {farmerName}
       </Text>
 
@@ -181,39 +181,39 @@ export function RecordReceiptScreen({ route, navigation }: Props) {
         placeholder="Receipt number (optional — leave blank to auto-generate)"
         value={receiptNumber}
         onChangeText={setReceiptNumber}
-        style={{ backgroundColor: "white", borderRadius: 8, padding: 12, marginBottom: 12 }}
+        style={{ backgroundColor: "white", borderRadius: 12, padding: 12, marginBottom: 12 }}
       />
       <TextInput
         placeholder="Weight (kg)"
         value={weightKg}
         onChangeText={setWeightKg}
         keyboardType="decimal-pad"
-        style={{ backgroundColor: "white", borderRadius: 8, padding: 12, marginBottom: 12 }}
+        style={{ backgroundColor: "white", borderRadius: 12, padding: 12, marginBottom: 12 }}
       />
 
       {photoUri ? (
-        <Image source={{ uri: photoUri }} style={{ width: 120, height: 120, borderRadius: 8, marginBottom: 12 }} />
+        <Image source={{ uri: photoUri }} style={{ width: 120, height: 120, borderRadius: 12, marginBottom: 12 }} />
       ) : null}
       <TouchableOpacity
         onPress={() => setShowCamera(true)}
-        style={{ borderColor: "#7a4a26", borderWidth: 1, borderRadius: 8, padding: 12, alignItems: "center", marginBottom: 16 }}
+        style={{ borderColor: "#2b6a4b", borderWidth: 1, borderRadius: 12, padding: 12, alignItems: "center", marginBottom: 16 }}
       >
-        <Text style={{ color: "#7a4a26" }}>{photoUri ? "Retake Photo" : "Photograph Paper Receipt"}</Text>
+        <Text style={{ color: "#2b6a4b" }}>{photoUri ? "Retake Photo" : "Photograph Paper Receipt"}</Text>
       </TouchableOpacity>
 
-      {error && <Text style={{ color: "#b3413b", marginBottom: 12 }}>{error}</Text>}
-      {message && <Text style={{ color: "#4a9d5f", marginBottom: 12 }}>{message}</Text>}
+      {error && <Text style={{ color: "#b73a2c", marginBottom: 12 }}>{error}</Text>}
+      {message && <Text style={{ color: "#3f7d5a", marginBottom: 12 }}>{message}</Text>}
 
       <TouchableOpacity
         onPress={onSave}
         disabled={saving}
-        style={{ backgroundColor: "#7a4a26", borderRadius: 8, padding: 14, alignItems: "center" }}
+        style={{ backgroundColor: "#2b6a4b", borderRadius: 12, padding: 14, alignItems: "center" }}
       >
         {saving ? <ActivityIndicator color="white" /> : <Text style={{ color: "white" }}>Save Receipt</Text>}
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 14, alignItems: "center" }}>
-        <Text style={{ color: "#7a4a26" }}>Back</Text>
+        <Text style={{ color: "#2b6a4b" }}>Back</Text>
       </TouchableOpacity>
     </View>
   );

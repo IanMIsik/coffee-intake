@@ -105,7 +105,7 @@ authRouter.post("/farmer/otp/request", asyncHandler(async (req, res) => {
   const farmer = await prisma.farmer.findUnique({
     where: { organizationId_phone: { organizationId: organization.id, phone } },
   });
-  if (!farmer) {
+  if (!farmer || farmer.archivedAt) {
     // Don't reveal whether the phone number is registered.
     return res.json({ ok: true });
   }
@@ -144,7 +144,7 @@ authRouter.post("/farmer/otp/verify", asyncHandler(async (req, res) => {
   const farmer = await prisma.farmer.findUnique({
     where: { organizationId_phone: { organizationId: organization.id, phone } },
   });
-  if (!farmer) {
+  if (!farmer || farmer.archivedAt) {
     return res.status(401).json({ error: "Invalid code" });
   }
 

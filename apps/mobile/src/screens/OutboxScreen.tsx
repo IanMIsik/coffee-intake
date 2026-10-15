@@ -39,21 +39,21 @@ export function OutboxScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#f7f3ee" }}>
+    <View style={{ flex: 1, backgroundColor: "#f6f2ea" }}>
       <FlatList
         data={items}
         keyExtractor={(i) => i.clientId}
         contentContainerStyle={{ padding: 12 }}
         ListHeaderComponent={
           items.length > 0 ? (
-            <Text style={{ color: "#5f3a1e", marginBottom: 12 }}>
+            <Text style={{ color: "#1d4d36", marginBottom: 12 }}>
               These receipts are saved on this phone but not on the server yet. Items marked "Needs attention"
               were refused by the server and will not retry on their own.
             </Text>
           ) : null
         }
         ListEmptyComponent={
-          <Text style={{ textAlign: "center", color: "#a9764a", marginTop: 40 }}>
+          <Text style={{ textAlign: "center", color: "#7b7266", marginTop: 40 }}>
             Everything has been sent. Nothing is waiting.
           </Text>
         }
@@ -63,41 +63,41 @@ export function OutboxScreen() {
             <View
               style={{
                 backgroundColor: "white",
-                borderRadius: 12,
+                borderRadius: 16,
                 padding: 14,
                 marginBottom: 8,
                 borderLeftWidth: 4,
-                borderLeftColor: rejected ? "#b91c1c" : "#d97706",
+                borderLeftColor: rejected ? "#962d22" : "#d97706",
               }}
             >
               <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
                 <Text style={{ fontWeight: "600" }}>{item.farmerName || "Farmer"}</Text>
                 <Text style={{ fontWeight: "700" }}>{item.weightKg} kg</Text>
               </View>
-              <Text style={{ color: "#a9764a", fontSize: 12 }}>
+              <Text style={{ color: "#7b7266", fontSize: 12 }}>
                 {new Date(item.createdAt).toLocaleString()}
                 {item.receiptNumber ? ` · #${item.receiptNumber}` : ""}
               </Text>
-              <Text style={{ marginTop: 6, color: rejected ? "#b91c1c" : "#b45309", fontWeight: "600", fontSize: 12 }}>
+              <Text style={{ marginTop: 6, color: rejected ? "#962d22" : "#8a6414", fontWeight: "600", fontSize: 12 }}>
                 {rejected ? "Needs attention" : "Waiting to send"}
               </Text>
               {item.lastError ? (
-                <Text style={{ color: "#5f3a1e", fontSize: 12, marginTop: 2 }}>{item.lastError}</Text>
+                <Text style={{ color: "#1d4d36", fontSize: 12, marginTop: 2 }}>{item.lastError}</Text>
               ) : null}
               <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
                 <TouchableOpacity
                   onPress={() => retry(item)}
                   disabled={busy}
-                  style={{ flex: 1, padding: 10, borderRadius: 8, alignItems: "center", backgroundColor: "#f7f3ee", opacity: busy ? 0.5 : 1 }}
+                  style={{ flex: 1, padding: 10, borderRadius: 12, alignItems: "center", backgroundColor: "#f6f2ea", opacity: busy ? 0.5 : 1 }}
                 >
-                  <Text style={{ color: "#7a4a26", fontWeight: "600" }}>Try again</Text>
+                  <Text style={{ color: "#2b6a4b", fontWeight: "600" }}>Try again</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => confirmDiscard(item)}
                   disabled={busy}
-                  style={{ flex: 1, padding: 10, borderRadius: 8, alignItems: "center", backgroundColor: "#fef2f2" }}
+                  style={{ flex: 1, padding: 10, borderRadius: 12, alignItems: "center", backgroundColor: "#fdf0ee" }}
                 >
-                  <Text style={{ color: "#b91c1c", fontWeight: "600" }}>Discard</Text>
+                  <Text style={{ color: "#962d22", fontWeight: "600" }}>Discard</Text>
                 </TouchableOpacity>
               </View>
             </View>
