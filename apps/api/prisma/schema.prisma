@@ -33,6 +33,7 @@ model Organization {
   receipts    Receipt[]
   settlements Settlement[]
   batches     Batch[]
+  receiptDeletions ReceiptDeletion[]
   otpCodes    OtpCode[]
 }
 
@@ -197,5 +198,29 @@ model Batch {
   receipts    Receipt[]
   settlements Settlement[]
 
+  @@index([organizationId, createdAt])
+}
+
+// Audit trail for delivery records an admin deleted (e.g. entered by mistake). The record is
+// removed from totals, but a full snapshot is kept so there is always an answer to "what was
+// here, who removed it and why". Nothing links to it, so the receipt number can be reused.
+model ReceiptDeletion {
+  id               String       @id @default(uuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  receiptNumber    String
+  farmerId         String
+  farmerName       String
+  weightKg         Decimal      @db.Decimal(10, 2)
+  deliveredAt      DateTime
+  recordedByName   String?
+  deletedByStaffId String
+  deletedByName    String
+  reason           String
+  // Everything that was on the receipt, including its photo path and any voided payments.
+  snapshot         Json
+  createdAt        DateTime     @default(now())
+
+  @@index([organizationId, farmerId])
   @@index([organizationId, createdAt])
 }

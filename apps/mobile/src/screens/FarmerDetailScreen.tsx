@@ -111,11 +111,13 @@ export function FarmerDetailScreen({ route, navigation }: Props) {
           <Tile value={formatKg(b.settledKg)} label="paid for" color="#1d4d36" bg="#f6f2ea" />
           <Tile value={formatKg(b.unsettledKg)} label="not yet paid" color="#8a6414" bg="#f8ecc9" />
         </View>
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          <Tile value={formatMoney(b.amountOwed)} label="owed" color="#8a6414" bg="#f8ecc9" />
-          <Tile value={formatMoney(b.amountPaid)} label="paid so far" color="#2b6a4b" bg="#e4eee7" />
-        </View>
-        {Number(b.unpricedKg) > 0 && (
+        {isAdmin && (
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <Tile value={formatMoney(b.amountOwed)} label="owed" color="#8a6414" bg="#f8ecc9" />
+            <Tile value={formatMoney(b.amountPaid)} label="paid so far" color="#2b6a4b" bg="#e4eee7" />
+          </View>
+        )}
+        {isAdmin && Number(b.unpricedKg) > 0 && (
           <Text style={{ color: "#8a6414", fontSize: 12, marginTop: 8 }}>
             {formatKg(b.unpricedKg)} unpaid has no price yet, so it isn't in the amount owed.
             {isAdmin ? " Set a price below." : " Ask an admin to set the price."}
@@ -358,7 +360,11 @@ function PriceCard({ farmer, onDone }: { farmer: FarmerView; onDone: (message: s
 }
 
 function ReceiptCard({ receipt: r, isAdmin, onChanged }: { receipt: Receipt; isAdmin: boolean; onChanged: () => Promise<void> }) {
-  const [mode, setMode] = useState<"view" | "pay" | "history">("view");
+  const [mode, setMode] = useState<"view" | "pay" | "history" | "edit" | "delete">("view");
+  const [number, setNumber] = useState(r.receiptNumber);
+  const [weight, setWeight] = useState(r.weightKg);
+  const [editPrice, setEditPrice] = useState(r.pricePerKg ?? "");
+  const [reason, setReason] = useState("");
   const [detail, setDetail] = useState<ReceiptWithDetails | null>(null);
   const [payKg, setPayKg] = useState("");
   const [payPrice, setPayPrice] = useState("");
@@ -369,7 +375,7 @@ function ReceiptCard({ receipt: r, isAdmin, onChanged }: { receipt: Receipt; isA
   const remaining = Number(r.weightKg) - Number(r.settledKg);
   const style = STATUS[status];
 
-  function open(next: "pay" | "history") {
+  function open(next: "pay" | "history" | "edit" | "delete") {
     setError(null);
     if (mode === next) return setMode("view");
     setMode(next);
@@ -378,6 +384,55 @@ function ReceiptCard({ receipt: r, isAdmin, onChanged }: { receipt: Receipt; isA
       setPayKg(String(remaining));
       setPayPrice(r.pricePerKg ?? "");
     }
+    if (next === "edit") {
+      setNumber(r.receiptNumber);
+      setWeight(r.weightKg);
+      setEditPrice(r.pricePerKg ?? "");
+    }
+    if (next === "delete") setReason("");
+  }
+
+  async function saveEdit() {
+    setError(null);
+    setSaving(true);
+    try {
+      const changes: { weightKg?: number; receiptNumber?: string; pricePerKg?: number | null } = {};
+      if (weight !== r.weightKg) changes.weightKg = Number(weight);
+      if (number !== r.receiptNumber) changes.receiptNumber = number;
+      if (isAdmin && editPrice !== (r.pricePerKg ?? "")) changes.pricePerKg = editPrice === "" ? null : Number(editPrice);
+      if (Object.keys(changes).length > 0) await api.adjustReceipt(r.id, changes);
+      setMode("view");
+      await onChanged();
+    } catch (e) {
+      setError(errText(e, "Couldn't save the changes"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function confirmDelete() {
+    Alert.alert(
+      `Delete receipt #${r.receiptNumber}?`,
+      "It is removed from the farmer's total and the day's totals. A copy is kept in the deleted-records list with your name and the reason.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setError(null);
+            setSaving(true);
+            try {
+              await api.deleteReceipt(r.id, reason.trim());
+              await onChanged();
+            } catch (e) {
+              setError(errText(e, "Couldn't delete this record"));
+              setSaving(false);
+            }
+          },
+        },
+      ]
+    );
   }
 
   async function pay() {
@@ -423,7 +478,7 @@ function ReceiptCard({ receipt: r, isAdmin, onChanged }: { receipt: Receipt; isA
           <Text style={{ fontWeight: "600" }}>Receipt #{r.receiptNumber}</Text>
           <Text style={{ color: MUTED, fontSize: 12 }}>{new Date(r.deliveredAt).toLocaleString()}</Text>
           <Text style={{ color: MUTED, fontSize: 12 }}>
-            {r.pricePerKg ? `${formatMoney(r.pricePerKg)}/kg` : "No price set"}
+            {isAdmin ? (r.pricePerKg ? `${formatMoney(r.pricePerKg)}/kg` : "No price set") : ""}
           </Text>
         </View>
         <View style={{ alignItems: "flex-end" }}>
@@ -436,17 +491,59 @@ function ReceiptCard({ receipt: r, isAdmin, onChanged }: { receipt: Receipt; isA
         </View>
       </View>
 
-      {isAdmin && (remaining > 0 || Number(r.settledKg) > 0) && (
+      {(
         <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
-          {remaining > 0 && (
+          <TouchableOpacity onPress={() => open("edit")} style={{ flex: 1, padding: 8, borderRadius: 12, alignItems: "center", backgroundColor: "#f6f2ea" }}>
+            <Text style={{ color: BROWN, fontWeight: "600", fontSize: 12 }}>Edit</Text>
+          </TouchableOpacity>
+          {isAdmin && remaining > 0 && (
             <TouchableOpacity onPress={() => open("pay")} style={{ flex: 1, padding: 8, borderRadius: 12, alignItems: "center", backgroundColor: BROWN }}>
               <Text style={{ color: "white", fontWeight: "600", fontSize: 12 }}>Pay</Text>
             </TouchableOpacity>
           )}
-          {Number(r.settledKg) > 0 && (
+          {isAdmin && Number(r.settledKg) > 0 && (
             <TouchableOpacity onPress={() => open("history")} style={{ flex: 1, padding: 8, borderRadius: 12, alignItems: "center", backgroundColor: "#f6f2ea" }}>
               <Text style={{ color: BROWN, fontWeight: "600", fontSize: 12 }}>Payments</Text>
             </TouchableOpacity>
+          )}
+          {isAdmin && (
+            <TouchableOpacity onPress={() => open("delete")} style={{ flex: 1, padding: 8, borderRadius: 12, alignItems: "center", backgroundColor: "#fdf0ee" }}>
+              <Text style={{ color: "#962d22", fontWeight: "600", fontSize: 12 }}>Delete</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {mode === "edit" && (
+        <View style={{ marginTop: 10, backgroundColor: "#f6f2ea", borderRadius: 12, padding: 10 }}>
+          <TextInput style={[input, { backgroundColor: "white" }]} value={number} onChangeText={setNumber} placeholder="Receipt number" />
+          <TextInput style={[input, { backgroundColor: "white" }]} value={weight} onChangeText={setWeight} placeholder="Weight (kg)" keyboardType="decimal-pad" />
+          {isAdmin && (
+            <TextInput style={[input, { backgroundColor: "white" }]} value={String(editPrice)} onChangeText={setEditPrice} placeholder="Price per kg" keyboardType="decimal-pad" />
+          )}
+          {Number(r.settledKg) > 0 && (
+            <Text style={{ color: MUTED, fontSize: 11, marginBottom: 8 }}>{formatKg(r.settledKg)} is already paid, so the weight can't go below that.</Text>
+          )}
+          {error && <Text style={{ color: "#b73a2c", marginBottom: 8 }}>{error}</Text>}
+          {saving ? <ActivityIndicator /> : <PrimaryButton label="Save changes" onPress={saveEdit} />}
+        </View>
+      )}
+
+      {mode === "delete" && (
+        <View style={{ marginTop: 10, backgroundColor: "#fdf0ee", borderRadius: 12, padding: 10 }}>
+          {Number(r.settledKg) > 0 ? (
+            <Text style={{ color: "#962d22", fontSize: 12 }}>
+              This delivery has payments recorded. Open Payments and void them first, then delete it.
+            </Text>
+          ) : (
+            <>
+              <Text style={{ color: "#962d22", fontSize: 12, marginBottom: 8 }}>
+                For a record entered by mistake. A copy stays in the deleted-records list.
+              </Text>
+              <TextInput style={[input, { backgroundColor: "white" }]} value={reason} onChangeText={setReason} placeholder="Reason (e.g. entered twice)" maxLength={200} />
+              {error && <Text style={{ color: "#b73a2c", marginBottom: 8 }}>{error}</Text>}
+              {saving ? <ActivityIndicator /> : <PrimaryButton label="Delete record" onPress={confirmDelete} disabled={reason.trim().length < 3} />}
+            </>
           )}
         </View>
       )}

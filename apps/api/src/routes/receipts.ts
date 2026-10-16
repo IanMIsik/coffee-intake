@@ -4,6 +4,7 @@ import multer from "multer";
 import {
   adjustReceiptSchema,
   createReceiptSchema,
+  deleteReceiptSchema,
   recordSettlementSchema,
   settleReceiptSchema,
 } from "@coffee/shared";
@@ -12,6 +13,7 @@ import { authOrgId, requireAuth, requireRole, requireStaff } from "../auth/middl
 import { getObjectStorage } from "../storage";
 import { createNotificationProvider } from "../notifications";
 import { asyncHandler } from "../lib/asyncHandler";
+import { hideMoneyFromClerks } from "../lib/redact";
 import { presentReceipt, presentReceipts } from "../lib/photos";
 import { SettlementError, lockReceipts, payForReceipt, recomputeReceipt } from "../lib/settlements";
 
@@ -37,7 +39,7 @@ const upload = multer({
 
 const MAX_LIST = 500;
 
-receiptsRouter.use(requireAuth, requireStaff);
+receiptsRouter.use(requireAuth, requireStaff, hideMoneyFromClerks);
 
 receiptsRouter.get("/", asyncHandler(async (req, res) => {
   const farmerId = typeof req.query.farmerId === "string" ? req.query.farmerId : undefined;
@@ -49,6 +51,30 @@ receiptsRouter.get("/", asyncHandler(async (req, res) => {
     take: limit,
   });
   res.json(await presentReceipts(receipts));
+}));
+
+// Admin: the audit trail of deleted delivery records.
+receiptsRouter.get("/deleted", requireRole("ADMIN"), asyncHandler(async (req, res) => {
+  const farmerId = typeof req.query.farmerId === "string" ? req.query.farmerId : undefined;
+  const rows = await prisma.receiptDeletion.findMany({
+    where: { organizationId: authOrgId(req), ...(farmerId ? { farmerId } : {}) },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+  });
+  res.json(
+    rows.map((r) => ({
+      id: r.id,
+      receiptNumber: r.receiptNumber,
+      farmerId: r.farmerId,
+      farmerName: r.farmerName,
+      weightKg: r.weightKg.toString(),
+      deliveredAt: r.deliveredAt.toISOString(),
+      recordedByName: r.recordedByName,
+      deletedByName: r.deletedByName,
+      reason: r.reason,
+      createdAt: r.createdAt.toISOString(),
+    }))
+  );
 }));
 
 receiptsRouter.get("/:id", asyncHandler(async (req, res) => {
@@ -136,6 +162,61 @@ receiptsRouter.patch("/:id", asyncHandler(async (req, res) => {
     }
     throw err;
   }
+}));
+
+// Admin: delete a delivery that was entered by mistake. Clerks can only edit. A delivery with
+// payments on it can't be deleted until those payments are voided, so money is never orphaned.
+// The record leaves every total, and a snapshot is kept in the deletion log.
+receiptsRouter.delete("/:id", requireRole("ADMIN"), asyncHandler(async (req, res) => {
+  const parsed = deleteReceiptSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0].message });
+  }
+  const organizationId = authOrgId(req);
+  const staffUserId = req.auth!.kind === "staff" ? req.auth!.staffUserId : "";
+
+  const existing = await prisma.receipt.findFirst({ where: { id: req.params.id, organizationId } });
+  if (!existing) {
+    return res.status(404).json({ error: "Receipt not found" });
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await lockReceipts(tx, [existing.id]);
+    const receipt = await tx.receipt.findUniqueOrThrow({
+      where: { id: existing.id },
+      include: { farmer: true, recordedByStaff: true, settlements: true },
+    });
+    if (receipt.settlements.some((s) => !s.voidedAt)) {
+      throw new SettlementError(
+        "This delivery has payments recorded against it. Void those payments first, then delete it."
+      );
+    }
+    const admin = await tx.staffUser.findUniqueOrThrow({ where: { id: staffUserId } });
+    const { farmer, recordedByStaff, settlements, ...fields } = receipt;
+    await tx.receiptDeletion.create({
+      data: {
+        organizationId,
+        receiptNumber: receipt.receiptNumber,
+        farmerId: receipt.farmerId,
+        farmerName: farmer.name,
+        weightKg: receipt.weightKg,
+        deliveredAt: receipt.deliveredAt,
+        recordedByName: recordedByStaff.name,
+        deletedByStaffId: staffUserId,
+        deletedByName: admin.name,
+        reason: parsed.data.reason,
+        snapshot: JSON.parse(JSON.stringify({ receipt: fields, voidedSettlements: settlements })),
+      },
+    });
+    await tx.settlement.deleteMany({ where: { receiptId: receipt.id } });
+    await tx.receipt.delete({ where: { id: receipt.id } });
+    await tx.farmer.update({
+      where: { id: receipt.farmerId },
+      data: { cumulativeWeightKg: { decrement: receipt.weightKg } },
+    });
+  });
+
+  res.json({ ok: true });
 }));
 
 receiptsRouter.patch("/:id/settle", requireRole("ADMIN"), asyncHandler(async (req, res) => {
@@ -328,7 +409,7 @@ receiptsRouter.post("/", upload.single("photo"), asyncHandler(async (req, res) =
   await sms
     .sendSms(
       farmer.phone,
-      `Receipt ${receipt.receiptNumber}: ${weightKg}kg cherry received. Your cumulative total is now ${updatedFarmer.cumulativeWeightKg}kg. - ${organization.name}`
+      `Receipt ${receipt.receiptNumber}: ${weightKg}kg cherry received. Your cumulative total is now ${updatedFarmer.cumulativeWeightKg}kg.`
     )
     .catch((err) => console.error("Failed to send receipt SMS:", err));
 

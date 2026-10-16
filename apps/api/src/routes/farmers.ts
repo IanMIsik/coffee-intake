@@ -4,6 +4,7 @@ import { createFarmerSchema, farmerPriceSchema, farmerSettlementSchema } from "@
 import { prisma } from "../db";
 import { authOrgId, requireAuth, requireFarmer, requireRole, requireStaff } from "../auth/middleware";
 import { asyncHandler } from "../lib/asyncHandler";
+import { hideMoneyFromClerks } from "../lib/redact";
 import { presentReceipts } from "../lib/photos";
 import { SettlementError, farmerBalance, lockReceipts, payForReceipt } from "../lib/settlements";
 
@@ -13,7 +14,7 @@ const MAX_RECEIPTS = 200;
 
 export const farmersRouter = Router();
 
-farmersRouter.use(requireAuth);
+farmersRouter.use(requireAuth, hideMoneyFromClerks);
 
 // Staff: list/search farmers in their organization.
 farmersRouter.get("/", requireStaff, asyncHandler(async (req, res) => {

@@ -154,6 +154,12 @@ export const holdFarmerSchema = z.object({
 });
 export type HoldFarmerInput = z.infer<typeof holdFarmerSchema>;
 
+/** Deleting a delivery record needs a reason, which is kept in the audit trail. */
+export const deleteReceiptSchema = z.object({
+  reason: z.string().trim().min(3, "Give a short reason").max(200),
+});
+export type DeleteReceiptInput = z.infer<typeof deleteReceiptSchema>;
+
 export const adjustReceiptSchema = z.object({
   weightKg: z.coerce.number().positive("Weight must be greater than 0").optional(),
   receiptNumber: z.string().trim().min(1).optional(),

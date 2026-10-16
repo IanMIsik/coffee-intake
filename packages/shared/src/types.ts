@@ -172,6 +172,20 @@ export interface DashboardSummary {
   topFarmersInRange: TopFarmer[];
 }
 
+/** A delivery record an admin deleted; kept for accountability. */
+export interface ReceiptDeletion {
+  id: string;
+  receiptNumber: string;
+  farmerId: string;
+  farmerName: string;
+  weightKg: string;
+  deliveredAt: string;
+  recordedByName: string | null;
+  deletedByName: string;
+  reason: string;
+  createdAt: string;
+}
+
 /** An agreed price for a lot of cherry, applied to everyone's unpaid kilos except farmers who wait. */
 export interface Batch {
   id: string;

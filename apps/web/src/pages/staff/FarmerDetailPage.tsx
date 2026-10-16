@@ -1,4 +1,4 @@
-import type { Farmer, FarmerBalance, Receipt, ReceiptWithDetails } from "@coffee/shared";
+import type { Farmer, FarmerBalance, Receipt, ReceiptDeletion, ReceiptWithDetails } from "@coffee/shared";
 import { ApiError, formatKg, formatMoney, paymentStatus } from "@coffee/shared";
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -60,7 +60,7 @@ export function FarmerDetailPage() {
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+        <div className={`mt-4 grid grid-cols-2 gap-3 text-center ${isAdmin ? "sm:grid-cols-4" : ""}`}>
           <div className="rounded-xl bg-coffee-50 p-3">
             <div className="font-semibold">{formatKg(b.settledKg)}</div>
             <div className="text-xs text-coffee-400">paid for</div>
@@ -69,16 +69,20 @@ export function FarmerDetailPage() {
             <div className="font-semibold text-gold-700">{formatKg(b.unsettledKg)}</div>
             <div className="text-xs text-gold-700">not yet paid for</div>
           </div>
-          <div className="rounded-xl bg-gold-100/60 p-3">
-            <div className="font-semibold text-gold-700">{formatMoney(b.amountOwed)}</div>
-            <div className="text-xs text-gold-700">owed</div>
-          </div>
-          <div className="rounded-xl bg-coffee-100/70 p-3">
-            <div className="font-semibold text-coffee-600">{formatMoney(b.amountPaid)}</div>
-            <div className="text-xs text-coffee-600">paid so far</div>
-          </div>
+          {isAdmin && (
+            <>
+              <div className="rounded-xl bg-gold-100/60 p-3">
+                <div className="font-semibold text-gold-700">{formatMoney(b.amountOwed)}</div>
+                <div className="text-xs text-gold-700">owed</div>
+              </div>
+              <div className="rounded-xl bg-coffee-100/70 p-3">
+                <div className="font-semibold text-coffee-600">{formatMoney(b.amountPaid)}</div>
+                <div className="text-xs text-coffee-600">paid so far</div>
+              </div>
+            </>
+          )}
         </div>
-        {Number(b.unpricedKg) > 0 && (
+        {isAdmin && Number(b.unpricedKg) > 0 && (
           <p className="mt-3 text-xs text-gold-700">
             {formatKg(b.unpricedKg)} unpaid has no price yet, so it isn't counted in the amount owed.
             {isAdmin ? " Set a price below." : " Ask an admin to set the price."}
@@ -148,6 +152,8 @@ export function FarmerDetailPage() {
             <ReceiptRow key={r.id} receipt={r} isAdmin={isAdmin} onChanged={refresh} />
           ))}
         </div>
+        {isAdmin && <DeletedRecords farmerId={farmer.id} refreshKey={farmer.receipts.length} />}
+
         {isAdmin && !farmer.archivedAt && (
           <div className="mt-6 flex justify-end">
             <button
@@ -330,7 +336,8 @@ function PricePanel({ farmer, onDone }: { farmer: FarmerView; onDone: (message: 
 }
 
 function ReceiptRow({ receipt: r, isAdmin, onChanged }: { receipt: Receipt; isAdmin: boolean; onChanged: () => Promise<void> }) {
-  const [mode, setMode] = useState<"view" | "edit" | "pay" | "history">("view");
+  const [mode, setMode] = useState<"view" | "edit" | "pay" | "history" | "delete">("view");
+  const [deleteReason, setDeleteReason] = useState("");
   const [detail, setDetail] = useState<ReceiptWithDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -354,6 +361,7 @@ function ReceiptRow({ receipt: r, isAdmin, onChanged }: { receipt: Receipt; isAd
       setWeight(r.weightKg);
       setPrice(r.pricePerKg ?? "");
     }
+    if (next === "delete") setDeleteReason("");
     if (next === "pay") {
       setPayKg(String(remaining));
       setPayPrice(r.pricePerKg ?? "");
@@ -412,7 +420,7 @@ function ReceiptRow({ receipt: r, isAdmin, onChanged }: { receipt: Receipt; isAd
           </Link>
           <div className="text-sm text-coffee-400">{new Date(r.deliveredAt).toLocaleString()}</div>
           <div className="text-xs text-coffee-400">
-            {r.pricePerKg ? `${formatMoney(r.pricePerKg)}/kg · worth ${formatMoney(value)}` : "No price set"}
+            {isAdmin && (r.pricePerKg ? `${formatMoney(r.pricePerKg)}/kg · worth ${formatMoney(value)}` : "No price set")}
             {r.editedAt && <span className="ml-2 text-amber-600">Adjusted</span>}
           </div>
         </div>
@@ -432,7 +440,47 @@ function ReceiptRow({ receipt: r, isAdmin, onChanged }: { receipt: Receipt; isAd
         {Number(r.settledKg) > 0 && (
           <button onClick={() => open("history")} className="btn !px-2.5 !py-1.5 !text-xs bg-coffee-100 text-coffee-700 hover:bg-coffee-200">Payments</button>
         )}
+        {isAdmin && (
+          <button onClick={() => open("delete")} className="btn !px-2.5 !py-1.5 !text-xs bg-cherry-50 text-cherry-700 hover:bg-cherry-100">Delete</button>
+        )}
       </div>
+
+      {mode === "delete" && (
+        <div className="mt-3 space-y-2 rounded-lg bg-cherry-50 p-3">
+          {Number(r.settledKg) > 0 ? (
+            <p className="text-xs text-cherry-700">
+              This delivery has payments recorded. Open <strong>Payments</strong> and void them first, then delete it.
+            </p>
+          ) : (
+            <>
+              <p className="text-xs text-cherry-700">
+                Use this for a record entered by mistake. It is removed from the farmer's total and the day's totals, but a
+                copy is kept in the deleted-records list with your name and the reason.
+              </p>
+              <input
+                className="input w-full !py-1.5 !px-2.5 !text-sm"
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="Reason (e.g. entered twice, wrong farmer)"
+                maxLength={200}
+              />
+            </>
+          )}
+          {error && <p className="text-cherry-600 text-xs">{error}</p>}
+          <div className="flex gap-2">
+            {Number(r.settledKg) === 0 && (
+              <button
+                onClick={() => run(() => api.deleteReceipt(r.id, deleteReason), "Couldn't delete this record")}
+                disabled={saving || deleteReason.trim().length < 3}
+                className="btn-danger !px-3 !py-1.5 !text-xs"
+              >
+                {saving ? "Deleting..." : "Delete record"}
+              </button>
+            )}
+            <button onClick={() => setMode("view")} className="text-xs text-coffee-400 underline">Cancel</button>
+          </div>
+        </div>
+      )}
 
       {mode === "edit" && (
         <div className="mt-3 rounded-lg bg-coffee-50 p-3 space-y-2">
@@ -504,6 +552,43 @@ function ReceiptRow({ receipt: r, isAdmin, onChanged }: { receipt: Receipt; isAd
           )}
           {error && <p className="text-cherry-600 text-xs">{error}</p>}
           <button onClick={() => setMode("view")} className="text-xs text-coffee-400 underline">Close</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DeletedRecords({ farmerId, refreshKey }: { farmerId: string; refreshKey: number }) {
+  const [rows, setRows] = useState<ReceiptDeletion[]>([]);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    api.listDeletedReceipts(farmerId).then(setRows).catch(() => setRows([]));
+  }, [farmerId, refreshKey]);
+
+  if (rows.length === 0) return null;
+  return (
+    <div className="mt-5">
+      <button onClick={() => setOpen((v) => !v)} className="text-sm font-semibold text-coffee-600 hover:underline">
+        {open ? "Hide" : "Show"} deleted records ({rows.length})
+      </button>
+      {open && (
+        <div className="card mt-2 divide-y divide-coffee-300/60 overflow-hidden">
+          {rows.map((d) => (
+            <div key={d.id} className="p-3 text-sm">
+              <div className="flex justify-between gap-3">
+                <span className="font-medium">
+                  Receipt #{d.receiptNumber} · {formatKg(d.weightKg)}
+                </span>
+                <span className="text-xs text-coffee-400">{new Date(d.createdAt).toLocaleString()}</span>
+              </div>
+              <div className="text-xs text-coffee-400">
+                Delivered {new Date(d.deliveredAt).toLocaleDateString()}
+                {d.recordedByName ? ` · recorded by ${d.recordedByName}` : ""} · deleted by {d.deletedByName}
+              </div>
+              <div className="text-xs text-cherry-700">Reason: {d.reason}</div>
+            </div>
+          ))}
         </div>
       )}
     </div>

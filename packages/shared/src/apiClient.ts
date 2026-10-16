@@ -1,5 +1,6 @@
 import type {
   BatchDetail,
+  ReceiptDeletion,
   BatchSummary,
   DashboardSummary,
   DayBreakdown,
@@ -247,6 +248,16 @@ export class CoffeeApiClient {
       method: "POST",
       body: JSON.stringify({ pricePerKg, scope }),
     });
+  }
+
+  /** Admin only. The receipt must have no live payments (void them first). */
+  deleteReceipt(id: string, reason: string) {
+    return this.request<{ ok: true }>(`/receipts/${id}`, { method: "DELETE", body: JSON.stringify({ reason }) });
+  }
+
+  listDeletedReceipts(farmerId?: string) {
+    const qs = farmerId ? `?farmerId=${encodeURIComponent(farmerId)}` : "";
+    return this.request<ReceiptDeletion[]>(`/receipts/deleted${qs}`);
   }
 
   listBatches() {
