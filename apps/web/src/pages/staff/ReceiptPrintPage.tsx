@@ -1,9 +1,12 @@
 import type { ReceiptWithDetails } from "@coffee/shared";
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import { api } from "../../lib/api";
 
 export function ReceiptPrintPage() {
+  const { session } = useAuth();
+  const isAdmin = session?.kind === "staff" && session.staff.role === "ADMIN";
   const { id } = useParams<{ id: string }>();
   const [receipt, setReceipt] = useState<ReceiptWithDetails | null>(null);
 
@@ -41,16 +44,18 @@ export function ReceiptPrintPage() {
             <span className="text-coffee-400">Recorded by</span>
             <span>{receipt.recordedByStaff.name}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-coffee-400">Status</span>
-            <span>
-              {receipt.settled
-                ? "Paid"
-                : Number(receipt.settledKg) > 0
-                  ? `${receipt.settledKg} kg paid`
-                  : "Not yet paid"}
-            </span>
-          </div>
+          {isAdmin && (
+            <div className="flex justify-between">
+              <span className="text-coffee-400">Status</span>
+              <span>
+                {receipt.settled
+                  ? "Paid"
+                  : Number(receipt.settledKg) > 0
+                    ? `${receipt.settledKg} kg paid`
+                    : "Not yet paid"}
+              </span>
+            </div>
+          )}
         </div>
         <div className="text-center py-3">
           <div className="text-3xl font-bold text-coffee-600">{receipt.weightKg} kg</div>

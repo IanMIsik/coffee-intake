@@ -129,7 +129,9 @@ receiptsRouter.patch("/:id", asyncHandler(async (req, res) => {
       const current = await tx.receipt.findUniqueOrThrow({ where: { id: existing.id } });
       if (weightKg !== undefined && current.settledKg.gt(weightKg)) {
         throw new SettlementError(
-          `${current.settledKg.toFixed(2)} kg of this delivery has already been paid, so the weight can't be set below that`
+          isAdmin(req)
+            ? `${current.settledKg.toFixed(2)} kg of this delivery has already been paid, so the weight can't be set below that`
+            : "This delivery has already been partly settled, so the weight can't be lowered. Ask an admin."
         );
       }
       let updated = await tx.receipt.update({

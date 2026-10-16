@@ -60,7 +60,8 @@ export function FarmerDetailPage() {
           </div>
         </div>
 
-        <div className={`mt-4 grid grid-cols-2 gap-3 text-center ${isAdmin ? "sm:grid-cols-4" : ""}`}>
+        {isAdmin && (
+        <div className="mt-4 grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
           <div className="rounded-xl bg-coffee-50 p-3">
             <div className="font-semibold">{formatKg(b.settledKg)}</div>
             <div className="text-xs text-coffee-400">paid for</div>
@@ -82,6 +83,7 @@ export function FarmerDetailPage() {
             </>
           )}
         </div>
+        )}
         {isAdmin && Number(b.unpricedKg) > 0 && (
           <p className="mt-3 text-xs text-gold-700">
             {formatKg(b.unpricedKg)} unpaid has no price yet, so it isn't counted in the amount owed.
@@ -426,9 +428,11 @@ function ReceiptRow({ receipt: r, isAdmin, onChanged }: { receipt: Receipt; isAd
         </div>
         <div className="text-right">
           <div className="font-semibold">{formatKg(r.weightKg)}</div>
-          <span className={`inline-block mt-1 text-xs rounded px-2 py-0.5 ${STATUS_STYLE[status]}`}>
-            {status === "paid" ? "Paid" : status === "partial" ? `${formatKg(r.settledKg)} paid` : "Not paid"}
-          </span>
+          {isAdmin && (
+            <span className={`inline-block mt-1 text-xs rounded px-2 py-0.5 ${STATUS_STYLE[status]}`}>
+              {status === "paid" ? "Paid" : status === "partial" ? `${formatKg(r.settledKg)} paid` : "Not paid"}
+            </span>
+          )}
         </div>
       </div>
 

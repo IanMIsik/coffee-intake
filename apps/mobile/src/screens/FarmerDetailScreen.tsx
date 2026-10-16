@@ -107,10 +107,12 @@ export function FarmerDetailScreen({ route, navigation }: Props) {
         <Text style={{ color: MUTED, fontSize: 12 }}>{farmer.phone}</Text>
         <Text style={{ fontSize: 28, fontWeight: "700", color: BROWN, marginTop: 8 }}>{formatKg(b.deliveredKg)}</Text>
         <Text style={{ color: MUTED, fontSize: 12, marginBottom: 12 }}>delivered in total</Text>
-        <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
-          <Tile value={formatKg(b.settledKg)} label="paid for" color="#1d4d36" bg="#f6f2ea" />
-          <Tile value={formatKg(b.unsettledKg)} label="not yet paid" color="#8a6414" bg="#f8ecc9" />
-        </View>
+        {isAdmin && (
+          <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+            <Tile value={formatKg(b.settledKg)} label="paid for" color="#1d4d36" bg="#f6f2ea" />
+            <Tile value={formatKg(b.unsettledKg)} label="not yet paid" color="#8a6414" bg="#f8ecc9" />
+          </View>
+        )}
         {isAdmin && (
           <View style={{ flexDirection: "row", gap: 8 }}>
             <Tile value={formatMoney(b.amountOwed)} label="owed" color="#8a6414" bg="#f8ecc9" />
@@ -483,11 +485,13 @@ function ReceiptCard({ receipt: r, isAdmin, onChanged }: { receipt: Receipt; isA
         </View>
         <View style={{ alignItems: "flex-end" }}>
           <Text style={{ fontWeight: "700" }}>{formatKg(r.weightKg)}</Text>
-          <View style={{ backgroundColor: style.bg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, marginTop: 4 }}>
-            <Text style={{ color: style.fg, fontSize: 11 }}>
-              {status === "partial" ? `${formatKg(r.settledKg)} paid` : style.label}
-            </Text>
-          </View>
+          {isAdmin && (
+            <View style={{ backgroundColor: style.bg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, marginTop: 4 }}>
+              <Text style={{ color: style.fg, fontSize: 11 }}>
+                {status === "partial" ? `${formatKg(r.settledKg)} paid` : style.label}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 

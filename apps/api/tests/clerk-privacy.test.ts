@@ -24,7 +24,8 @@ describe("money is hidden from clerks", () => {
     await request(app).post(`/receipts/${receiptId}/settlements`).set(auth(admin)).send({ weightKg: 20 });
   });
 
-  const hasMoney = (body: unknown) => /"(pricePerKg|amount|amountOwed|amountPaid|unpricedKg)"/.test(JSON.stringify(body));
+  const hasMoney = (body: unknown) =>
+    /"(pricePerKg|amount|amountOwed|amountPaid|unpricedKg|settledKg|unsettledKg|settled|settledAt|settlements)"/.test(JSON.stringify(body));
 
   it("shows the admin prices and amounts", async () => {
     const farmer = await request(app).get(`/farmers/${farmerId}`).set(auth(admin));
@@ -33,18 +34,17 @@ describe("money is hidden from clerks", () => {
     expect(farmer.body.receipts[0].pricePerKg).toBe("80");
   });
 
-  it("strips every money field from a clerk's responses but keeps the kilos", async () => {
+  it("strips money and payment status from a clerk's responses but keeps the kilos", async () => {
     const farmer = await request(app).get(`/farmers/${farmerId}`).set(auth(clerk));
     expect(farmer.status).toBe(200);
     expect(hasMoney(farmer.body)).toBe(false);
     expect(farmer.body.balance.deliveredKg).toBe("50");
-    expect(farmer.body.balance.unsettledKg).toBe("30");
 
     const list = await request(app).get(`/receipts?farmerId=${farmerId}`).set(auth(clerk));
     expect(hasMoney(list.body)).toBe(false);
     const detail = await request(app).get(`/receipts/${receiptId}`).set(auth(clerk));
     expect(hasMoney(detail.body)).toBe(false);
-    expect(detail.body.settlements).toHaveLength(1);
+    expect(detail.body.receiptNumber).toBeTruthy();
 
     const edited = await request(app).patch(`/receipts/${receiptId}`).set(auth(clerk)).send({ weightKg: 55 });
     expect(edited.status).toBe(200);
